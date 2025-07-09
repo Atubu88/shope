@@ -8,6 +8,8 @@ from database.orm_query import (
     orm_get_products,
     orm_get_user_carts,
     orm_reduce_product_in_cart,
+    orm_get_user,
+    orm_get_salons,
 )
 from kbds.inline import (
     get_products_btns,
@@ -19,9 +21,8 @@ from utils.paginator import Paginator
 from aiogram.types import InputMediaPhoto, FSInputFile
 
 
-async def main_menu(session, level, menu_name):
-    # Получаем баннер из базы данных
-    banner = await orm_get_banner(session, menu_name)
+async def main_menu(session, level, menu_name, salon_id):
+    banner = await orm_get_banner(session, menu_name, salon_id)
 
     # Убедимся, что путь к изображению указан правильно
     if banner.image and os.path.exists(banner.image):
@@ -34,12 +35,11 @@ async def main_menu(session, level, menu_name):
 
     # Получаем клавиатуру для главного меню
     kbds = get_user_main_btns(level=level)
-
     return image, kbds
 
 
-async def catalog(session, level, menu_name):
-    banner = await orm_get_banner(session, menu_name)
+async def catalog(session, level, menu_name, salon_id):
+    banner = await orm_get_banner(session, menu_name, salon_id)
 
     # Проверяем, что изображение существует и доступно по указанному пути
     if banner.image and os.path.exists(banner.image):
@@ -49,7 +49,7 @@ async def catalog(session, level, menu_name):
         # В случае отсутствия изображения используем изображение по умолчанию
         image = InputMediaPhoto(media=FSInputFile("banners/default.jpg"), caption="Изображение не найдено или путь некорректен")
 
-    categories = await orm_get_categories(session)
+    categories = await orm_get_categories(session, salon_id)
     kbds = get_user_catalog_btns(level=level, categories=categories)
 
     return image, kbds
@@ -65,8 +65,8 @@ def pages(paginator: Paginator):
     return btns
 
 
-async def products(session, level, category, page):
-    products = await orm_get_products(session, category_id=category)
+async def products(session, level, category, page, salon_id):
+    products = await orm_get_products(session, category_id=category, salon_id=salon_id)
 
     paginator = Paginator(products, page=page)
     product = paginator.get_page()[0]
@@ -91,7 +91,7 @@ async def products(session, level, category, page):
     return image, kbds
 
 
-async def carts(session, level, menu_name, page, user_id, product_id):
+async def carts(session, level, menu_name, page, user_id, product_id, salon_id):
     if menu_name == "delete":
         await orm_delete_from_cart(session, user_id, product_id)
         if page > 1:
@@ -106,7 +106,7 @@ async def carts(session, level, menu_name, page, user_id, product_id):
     carts = await orm_get_user_carts(session, user_id)
 
     if not carts:
-        banner = await orm_get_banner(session, "cart")
+        banner = await orm_get_banner(session, "cart", salon_id)
         image = InputMediaPhoto(
             media=banner.image, caption=f"<strong>{banner.description}</strong>"
         )
@@ -154,11 +154,19 @@ async def get_menu_content(
     product_id: int | None = None,
     user_id: int | None = None,
 ):
+    salon_id = None
+    if user_id:
+        user = await orm_get_user(session, user_id)
+        salon_id = user.salon_id if user else None
+    if salon_id is None:
+        salons = await orm_get_salons(session)
+        if salons:
+            salon_id = salons[0].id
+
     if level == 0:
-        return await main_menu(session, level, menu_name)
+        return await main_menu(session, level, menu_name, salon_id)
     elif level == 1:
-        return await catalog(session, level, menu_name)
+        return await catalog(session, level, menu_name, salon_id)
     elif level == 2:
-        return await products(session, level, category, page)
-    elif level == 3:
-        return await carts(session, level, menu_name, page, user_id, product_id)
+        return await products(session, level, category, page, salon_id)
+    elif level == 3:        return await carts(session, level, menu_name, page, user_id, product_id, salon_id)

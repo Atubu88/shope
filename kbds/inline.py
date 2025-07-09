@@ -11,6 +11,10 @@ class MenuCallBack(CallbackData, prefix="menu"):
     product_id: int | None = None
 
 
+class SalonCallBack(CallbackData, prefix="salon"):
+    salon_id: int
+
+
 def get_user_main_btns(*, level: int, sizes: tuple[int] = (2,)):
     keyboard = InlineKeyboardBuilder()
     btns = {
@@ -32,6 +36,18 @@ def get_user_main_btns(*, level: int, sizes: tuple[int] = (2,)):
                                               callback_data=MenuCallBack(level=level, menu_name=menu_name).pack()))
 
     return keyboard.adjust(*sizes).as_markup()
+
+
+def get_salon_btns(salons):
+    keyboard = InlineKeyboardBuilder()
+    for salon in salons:
+        keyboard.add(
+            InlineKeyboardButton(
+                text=salon.name,
+                callback_data=SalonCallBack(salon_id=salon.id).pack(),
+            )
+        )
+    return keyboard.as_markup()
 
 
 def get_user_catalog_btns(*, level: int, categories: list, sizes: tuple[int] = (2,)):
