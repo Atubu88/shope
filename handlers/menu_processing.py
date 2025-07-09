@@ -8,6 +8,8 @@ from database.orm_query import (
     orm_get_products,
     orm_get_user_carts,
     orm_reduce_product_in_cart,
+    orm_get_user,
+    orm_get_salons,
 )
 from kbds.inline import (
     get_products_btns,
@@ -19,67 +21,66 @@ from utils.paginator import Paginator
 from aiogram.types import InputMediaPhoto, FSInputFile
 
 
-async def main_menu(session, level, menu_name):
-    # Получаем баннер из базы данных
-    banner = await orm_get_banner(session, menu_name)
+from aiogram.types import InputMediaPhoto
 
-    # Убедимся, что путь к изображению указан правильно
-    if banner.image and os.path.exists(banner.image):
-        # Создаем объект InputMediaPhoto с использованием FSInputFile
-        image = InputMediaPhoto(media=FSInputFile(banner.image), caption=banner.description)
+from aiogram.types import InputMediaPhoto, FSInputFile
+import os
+
+def get_image_banner(image: str | None, description: str) -> InputMediaPhoto:
+    """
+    Возвращает объект InputMediaPhoto на основе:
+    - Telegram file_id (начинается с "AgACAg")
+    - локального пути к файлу (если он существует)
+    - дефолтной картинки, если ничего не найдено
+    """
+    if image and image.startswith("AgACAg"):
+        return InputMediaPhoto(media=image, caption=description)
+
+    elif image and os.path.exists(image):
+        return InputMediaPhoto(media=FSInputFile(image), caption=description)
+
     else:
-        # Если путь к изображению не указан или неверен, используем изображение по умолчанию
-        image = InputMediaPhoto(media=FSInputFile("banners/default.jpg"),
-                                caption="Изображение не найдено или путь некорректен")
+        return InputMediaPhoto(media=FSInputFile("banners/default.jpg"),
+                               caption="Изображение не найдено или путь некорректен")
 
-    # Получаем клавиатуру для главного меню
+
+
+async def main_menu(session, level, menu_name, salon_id):
+    banner = await orm_get_banner(session, menu_name, salon_id)
+    image = get_image_banner(banner.image if banner else None, banner.description if banner else "")
     kbds = get_user_main_btns(level=level)
-
     return image, kbds
 
 
-async def catalog(session, level, menu_name):
-    banner = await orm_get_banner(session, menu_name)
-
-    # Проверяем, что изображение существует и доступно по указанному пути
-    if banner.image and os.path.exists(banner.image):
-        # Используем FSInputFile для отправки локального файла
-        image = InputMediaPhoto(media=FSInputFile(banner.image), caption=banner.description)
-    else:
-        # В случае отсутствия изображения используем изображение по умолчанию
-        image = InputMediaPhoto(media=FSInputFile("banners/default.jpg"), caption="Изображение не найдено или путь некорректен")
-
-    categories = await orm_get_categories(session)
+async def catalog(session, level, menu_name, salon_id):
+    banner = await orm_get_banner(session, menu_name, salon_id)
+    image = get_image_banner(banner.image if banner else None, banner.description if banner else "")
+    categories = await orm_get_categories(session, salon_id)
     kbds = get_user_catalog_btns(level=level, categories=categories)
-
     return image, kbds
+
 
 def pages(paginator: Paginator):
-    btns = dict()
+    btns = {}
     if paginator.has_previous():
         btns["◀ Пред."] = "previous"
-
     if paginator.has_next():
         btns["След. ▶"] = "next"
-
     return btns
 
 
-async def products(session, level, category, page):
-    products = await orm_get_products(session, category_id=category)
-
+async def products(session, level, category, page, salon_id):
+    products = await orm_get_products(session, category_id=category, salon_id=salon_id)
     paginator = Paginator(products, page=page)
     product = paginator.get_page()[0]
 
-    image = InputMediaPhoto(
-        media=product.image,
-        caption=f"<strong>{product.name}\
-                </strong>\n{product.description}\nСтоимость: {round(product.price, 2)}\n\
-                <strong>Товар {paginator.page} из {paginator.pages}</strong>",
+    image = get_image_banner(
+        product.image,
+        f"<strong>{product.name}</strong>\n{product.description}\nСтоимость: {round(product.price, 2)}\n"
+        f"<strong>Товар {paginator.page} из {paginator.pages}</strong>"
     )
 
     pagination_btns = pages(paginator)
-
     kbds = get_products_btns(
         level=level,
         category=category,
@@ -87,11 +88,10 @@ async def products(session, level, category, page):
         pagination_btns=pagination_btns,
         product_id=product.id,
     )
-
     return image, kbds
 
 
-async def carts(session, level, menu_name, page, user_id, product_id):
+async def carts(session, level, menu_name, page, user_id, product_id, salon_id):
     if menu_name == "delete":
         await orm_delete_from_cart(session, user_id, product_id)
         if page > 1:
@@ -106,35 +106,22 @@ async def carts(session, level, menu_name, page, user_id, product_id):
     carts = await orm_get_user_carts(session, user_id)
 
     if not carts:
-        banner = await orm_get_banner(session, "cart")
-        image = InputMediaPhoto(
-            media=banner.image, caption=f"<strong>{banner.description}</strong>"
-        )
-
-        kbds = get_user_cart(
-            level=level,
-            page=None,
-            pagination_btns=None,
-            product_id=None,
-        )
-
+        banner = await orm_get_banner(session, "cart", salon_id)
+        image = get_image_banner(banner.image if banner else None, f"<strong>{banner.description}</strong>" if banner else "Корзина пуста")
+        kbds = get_user_cart(level=level, page=None, pagination_btns=None, product_id=None)
     else:
         paginator = Paginator(carts, page=page)
-
         cart = paginator.get_page()[0]
-
         cart_price = round(cart.quantity * cart.product.price, 2)
-        total_price = round(
-            sum(cart.quantity * cart.product.price for cart in carts), 2
-        )
-        image = InputMediaPhoto(
-            media=cart.product.image,
-            caption=f"<strong>{cart.product.name}</strong>\n{cart.product.price}$ x {cart.quantity} = {cart_price}$\
-                    \nТовар {paginator.page} из {paginator.pages} в корзине.\nОбщая стоимость товаров в корзине {total_price}",
+        total_price = round(sum(c.quantity * c.product.price for c in carts), 2)
+
+        image = get_image_banner(
+            cart.product.image,
+            f"<strong>{cart.product.name}</strong>\n{cart.product.price}$ x {cart.quantity} = {cart_price}$\n"
+            f"Товар {paginator.page} из {paginator.pages} в корзине.\nОбщая стоимость: {total_price}$"
         )
 
         pagination_btns = pages(paginator)
-
         kbds = get_user_cart(
             level=level,
             page=page,
@@ -154,11 +141,20 @@ async def get_menu_content(
     product_id: int | None = None,
     user_id: int | None = None,
 ):
+    salon_id = None
+    if user_id:
+        user = await orm_get_user(session, user_id)
+        salon_id = user.salon_id if user else None
+    if salon_id is None:
+        salons = await orm_get_salons(session)
+        if salons:
+            salon_id = salons[0].id
+
     if level == 0:
-        return await main_menu(session, level, menu_name)
+        return await main_menu(session, level, menu_name, salon_id)
     elif level == 1:
-        return await catalog(session, level, menu_name)
+        return await catalog(session, level, menu_name, salon_id)
     elif level == 2:
-        return await products(session, level, category, page)
+        return await products(session, level, category, page, salon_id)
     elif level == 3:
-        return await carts(session, level, menu_name, page, user_id, product_id)
+        return await carts(session, level, menu_name, page, user_id, product_id, salon_id)

@@ -1,5 +1,5 @@
 from aiogram.filters.callback_data import CallbackData
-from aiogram.types import InlineKeyboardButton
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
@@ -9,6 +9,10 @@ class MenuCallBack(CallbackData, prefix="menu"):
     category: int | None = None
     page: int = 1
     product_id: int | None = None
+
+
+class SalonCallBack(CallbackData, prefix="salon"):
+    salon_id: int
 
 
 def get_user_main_btns(*, level: int, sizes: tuple[int] = (2,)):
@@ -32,6 +36,18 @@ def get_user_main_btns(*, level: int, sizes: tuple[int] = (2,)):
                                               callback_data=MenuCallBack(level=level, menu_name=menu_name).pack()))
 
     return keyboard.adjust(*sizes).as_markup()
+
+
+def get_salon_btns(salons):
+    keyboard = InlineKeyboardBuilder()
+    for salon in salons:
+        keyboard.add(
+            InlineKeyboardButton(
+                text=salon.name,
+                callback_data=SalonCallBack(salon_id=salon.id).pack(),
+            )
+        )
+    return keyboard.as_markup()
 
 
 def get_user_catalog_btns(*, level: int, categories: list, sizes: tuple[int] = (2,)):
@@ -142,7 +158,14 @@ def get_user_cart(
         return keyboard.adjust(*sizes).as_markup()
 
 
-def get_callback_btns(*, btns: dict[str, str], sizes: tuple[int] = (2,)):
+def get_callback_btns(*, btns: dict[str, str], sizes: tuple[int] = (2,)) -> InlineKeyboardMarkup:
+    """
+    Создаёт inline-клавиатуру с кнопками из словаря `btns`.
+
+    :param btns: Словарь вида {'Текст кнопки': 'callback_data'}
+    :param sizes: Кортеж, определяющий количество кнопок в строках
+    :return: Объект InlineKeyboardMarkup
+    """
     keyboard = InlineKeyboardBuilder()
 
     for text, data in btns.items():
