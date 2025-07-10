@@ -17,6 +17,7 @@ from database.orm_query import (
     orm_update_product,
     orm_get_salons,
 )
+from utils.access import check_salon_access
 
 from filters.chat_types import ChatTypeFilter, IsAdmin
 
@@ -46,19 +47,40 @@ async def exit_admin_mode(message: types.Message, state: FSMContext):
 @admin_router.message(Command("admin"))
 async def admin_features(message: types.Message, session: AsyncSession):
     args = message.text.split()
+    user_id = message.from_user.id
+    user = await orm_get_user(session, user_id)
+
     if len(args) > 1:
-        ADMIN_SALON[message.from_user.id] = int(args[1])
-    if message.from_user.id not in ADMIN_SALON:
+        salon_id = int(args[1])
+        if not await check_salon_access(session, user_id, salon_id):
+            await message.answer("Нет доступа к этому салону")
+            return
+        ADMIN_SALON[user_id] = salon_id
+
+    if user_id not in ADMIN_SALON:
         salons = await orm_get_salons(session)
+        if not (user and user.is_super_admin):
+            salons = [s for s in salons if user and s.id == user.salon_id]
         btns = {s.name: f"set_salon_{s.id}" for s in salons}
         await message.answer("Выберите салон", reply_markup=get_callback_btns(btns=btns))
         return
+
+    salon_id = ADMIN_SALON.get(user_id)
+    if not await check_salon_access(session, user_id, salon_id):
+        await message.answer("Нет доступа к этому салону")
+        ADMIN_SALON.pop(user_id, None)
+        return
+
     await message.answer("Что хотите сделать?", reply_markup=ADMIN_KB)
 
 
 @admin_router.callback_query(F.data.startswith('set_salon_'))
-async def set_salon(callback: types.CallbackQuery):
+async def set_salon(callback: types.CallbackQuery, session: AsyncSession):
     salon_id = int(callback.data.split('_')[-1])
+    if not await check_salon_access(session, callback.from_user.id, salon_id):
+        await callback.message.answer("Нет доступа к этому салону")
+        await callback.answer()
+        return
     ADMIN_SALON[callback.from_user.id] = salon_id
     await callback.message.answer("Салон выбран")
     await callback.answer()
@@ -67,6 +89,9 @@ async def set_salon(callback: types.CallbackQuery):
 @admin_router.message(F.text == 'Ассортимент')
 async def admin_features(message: types.Message, session: AsyncSession):
     salon_id = ADMIN_SALON.get(message.from_user.id)
+    if not await check_salon_access(session, message.from_user.id, salon_id):
+        await message.answer("Нет доступа к этому салону")
+        return
     categories = await orm_get_categories(session, salon_id)
     btns = {category.name : f'category_{category.id}' for category in categories}
     await message.answer("Выберите категорию", reply_markup=get_callback_btns(btns=btns))
@@ -76,6 +101,10 @@ async def admin_features(message: types.Message, session: AsyncSession):
 async def starring_at_product(callback: types.CallbackQuery, session: AsyncSession):
     category_id = callback.data.split('_')[-1]
     salon_id = ADMIN_SALON.get(callback.from_user.id)
+    if not await check_salon_access(session, callback.from_user.id, salon_id):
+        await callback.message.answer("Нет доступа к этому салону")
+        await callback.answer()
+        return
     for product in await orm_get_products(session, int(category_id), salon_id):
         await callback.message.answer_photo(
             product.image,
@@ -97,6 +126,10 @@ async def starring_at_product(callback: types.CallbackQuery, session: AsyncSessi
 async def delete_product_callback(callback: types.CallbackQuery, session: AsyncSession):
     product_id = callback.data.split("_")[-1]
     salon_id = ADMIN_SALON.get(callback.from_user.id)
+    if not await check_salon_access(session, callback.from_user.id, salon_id):
+        await callback.message.answer("Нет доступа к этому салону")
+        await callback.answer()
+        return
     await orm_delete_product(session, int(product_id), salon_id)
 
     await callback.answer("Товар удален")
@@ -112,9 +145,13 @@ class AddBanner(StatesGroup):
 @admin_router.message(StateFilter(None), F.text == 'Добавить/Изменить баннер')
 async def add_image2(message: types.Message, state: FSMContext, session: AsyncSession):
     salon_id = ADMIN_SALON.get(message.from_user.id)
+    if not await check_salon_access(session, message.from_user.id, salon_id):
+        await message.answer("Нет доступа к этому салону")
+        return
     pages_names = [page.name for page in await orm_get_info_pages(session, salon_id)]
-    await message.answer(f"Отправьте фото баннера.\nВ описании укажите для какой страницы:\
-                         \n{', '.join(pages_names)}")
+    await message.answer(
+        f"Отправьте фото баннера.\nВ описании укажите для какой страницы:\n{', '.join(pages_names)}"
+    )
     await state.set_state(AddBanner.image)
 
 # Добавляем/изменяем изображение в таблице (там уже есть записанные страницы по именам:
@@ -124,6 +161,9 @@ async def add_banner(message: types.Message, state: FSMContext, session: AsyncSe
     image_id = message.photo[-1].file_id
     for_page = message.caption.strip()
     salon_id = ADMIN_SALON.get(message.from_user.id)
+    if not await check_salon_access(session, message.from_user.id, salon_id):
+        await message.answer("Нет доступа к этому салону")
+        return
     pages_names = [page.name for page in await orm_get_info_pages(session, salon_id)]
     if for_page not in pages_names:
         await message.answer(f"Введите нормальное название страницы, например:\
@@ -181,6 +221,10 @@ async def change_product_callback(
 ):
     product_id = callback.data.split("_")[-1]
     salon_id = ADMIN_SALON.get(callback.from_user.id)
+    if not await check_salon_access(session, callback.from_user.id, salon_id):
+        await callback.message.answer("Нет доступа к этому салону")
+        await callback.answer()
+        return
 
     product_for_change = await orm_get_product(session, int(product_id), salon_id)
 
@@ -195,7 +239,11 @@ async def change_product_callback(
 
 # Становимся в состояние ожидания ввода name
 @admin_router.message(StateFilter(None), F.text == "Добавить товар")
-async def add_product(message: types.Message, state: FSMContext):
+async def add_product(message: types.Message, state: FSMContext, session: AsyncSession):
+    salon_id = ADMIN_SALON.get(message.from_user.id)
+    if not await check_salon_access(session, message.from_user.id, salon_id):
+        await message.answer("Нет доступа к этому салону")
+        return
     await message.answer(
         "Введите название товара", reply_markup=types.ReplyKeyboardRemove()
     )
@@ -269,6 +317,9 @@ async def add_description(message: types.Message, state: FSMContext, session: As
         await state.update_data(description=message.text)
 
     salon_id = ADMIN_SALON.get(message.from_user.id)
+    if not await check_salon_access(session, message.from_user.id, salon_id):
+        await message.answer("Нет доступа к этому салону")
+        return
     categories = await orm_get_categories(session, salon_id)
     btns = {category.name : str(category.id) for category in categories}
     await message.answer("Выберите категорию", reply_markup=get_callback_btns(btns=btns))
@@ -284,6 +335,10 @@ async def add_description2(message: types.Message, state: FSMContext):
 @admin_router.callback_query(AddProduct.category)
 async def category_choice(callback: types.CallbackQuery, state: FSMContext , session: AsyncSession):
     salon_id = ADMIN_SALON.get(callback.from_user.id)
+    if not await check_salon_access(session, callback.from_user.id, salon_id):
+        await callback.message.answer("Нет доступа к этому салону")
+        await callback.answer()
+        return
     if int(callback.data) in [category.id for category in await orm_get_categories(session, salon_id)]:
         await callback.answer()
         await state.update_data(category=callback.data)
@@ -301,7 +356,7 @@ async def category_choice2(message: types.Message, state: FSMContext):
 
 # Ловим данные для состояние price и потом меняем состояние на image
 @admin_router.message(AddProduct.price, F.text)
-async def add_price(message: types.Message, state: FSMContext):
+async def add_price(message: types.Message, state: FSMContext, session: AsyncSession):
     if message.text == "." and AddProduct.product_for_change:
         await state.update_data(price=AddProduct.product_for_change.price)
     else:
@@ -312,6 +367,10 @@ async def add_price(message: types.Message, state: FSMContext):
             return
 
         await state.update_data(price=message.text)
+    salon_id = ADMIN_SALON.get(message.from_user.id)
+    if not await check_salon_access(session, message.from_user.id, salon_id):
+        await message.answer("Нет доступа к этому салону")
+        return
     await message.answer("Загрузите изображение товара")
     await state.set_state(AddProduct.image)
 
@@ -333,12 +392,14 @@ async def add_image(message: types.Message, state: FSMContext, session: AsyncSes
         await message.answer("Отправьте фото пищи")
         return
     data = await state.get_data()
+    salon_id = ADMIN_SALON.get(message.from_user.id)
+    if not await check_salon_access(session, message.from_user.id, salon_id):
+        await message.answer("Нет доступа к этому салону")
+        return
     try:
         if AddProduct.product_for_change:
-            salon_id = ADMIN_SALON.get(message.from_user.id)
             await orm_update_product(session, AddProduct.product_for_change.id, data, salon_id)
         else:
-            salon_id = ADMIN_SALON.get(message.from_user.id)
             await orm_add_product(session, data, salon_id)
         await message.answer("Товар добавлен/изменен", reply_markup=ADMIN_KB)
         await state.clear()
