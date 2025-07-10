@@ -20,13 +20,14 @@ class Salon(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), unique=True)
+    slug: Mapped[str] = mapped_column(String(50), unique=True)
 
 
 class Banner(Base):
     __tablename__ = 'banner'
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(15), unique=True)
+    name: Mapped[str] = mapped_column(String(15))
     image: Mapped[str] = mapped_column(String(150), nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     salon_id: Mapped[int] = mapped_column(ForeignKey('salon.id'), nullable=False)

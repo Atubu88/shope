@@ -2,7 +2,7 @@ import math
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-
+from common.texts_for_db import categories, description_for_info_pages
 from database.models import Banner, Cart, Category, Product, User, Salon
 
 # Простой пагинатор
@@ -54,20 +54,22 @@ async def orm_get_salons(session: AsyncSession):
     return result.scalars().all()
 
 
-async def orm_create_salon(session: AsyncSession, name: str):
-    stmt = select(Salon).where(Salon.name == name)
+async def orm_create_salon(session: AsyncSession, name: str, slug: str):
+    stmt = select(Salon).where((Salon.name == name) | (Salon.slug == slug))
     result = await session.execute(stmt)
     salon = result.scalar_one_or_none()
 
     if salon:
-        return salon  # уже существует — возвращаем
-    new_salon = Salon(name=name)
+        raise ValueError("Salon with this name or slug already exists")
+    new_salon = Salon(name=name, slug=slug)
     session.add(new_salon)
     await session.commit()
     await session.refresh(new_salon)
     return new_salon
 
-
+async def orm_get_salon_by_slug(session: AsyncSession, slug: str):
+    result = await session.execute(select(Salon).where(Salon.slug == slug))
+    return result.scalar_one_or_none()
 
 ############### Работа с баннерами (информационными страницами) ###############
 
@@ -179,6 +181,12 @@ async def orm_delete_product(session: AsyncSession, product_id: int, salon_id: i
     query = delete(Product).where(Product.id == product_id, Product.salon_id == salon_id)
     await session.execute(query)
     await session.commit()
+
+async def init_default_salon_content(session: AsyncSession, salon_id: int):
+    """Fill newly created salon with default categories and banners."""
+    await orm_create_categories(session, categories, salon_id)
+    await orm_add_banner_description(session, description_for_info_pages, salon_id)
+
 
 ##################### Добавляем юзера в БД #####################################
 
