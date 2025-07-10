@@ -52,7 +52,9 @@ async def add_to_cart(callback: types.CallbackQuery, callback_data: MenuCallBack
         phone=None,
         salon_id=(await orm_get_user(session, user.id)).salon_id if await orm_get_user(session, user.id) else None,
     )
-    await orm_add_to_cart(session, user_id=user.id, product_id=callback_data.product_id)
+    user_db = await orm_get_user(session, user.id)
+    salon_id = user_db.salon_id if user_db else None
+    await orm_add_to_cart(session, user_id=user.id, product_id=callback_data.product_id, salon_id=salon_id)
     await callback.answer("Товар добавлен в корзину.")
 
 

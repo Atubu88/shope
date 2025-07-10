@@ -153,8 +153,8 @@ async def orm_get_products(session: AsyncSession, category_id, salon_id: int):
     return result.scalars().all()
 
 
-async def orm_get_product(session: AsyncSession, product_id: int):
-    query = select(Product).where(Product.id == product_id)
+async def orm_get_product(session: AsyncSession, product_id: int, salon_id: int):
+    query = select(Product).where(Product.id == product_id, Product.salon_id == salon_id)
     result = await session.execute(query)
     return result.scalar()
 
@@ -189,6 +189,8 @@ async def orm_add_user(
     last_name: str | None = None,
     phone: str | None = None,
     salon_id: int | None = None,
+    is_super_admin: bool = False,
+    is_salon_admin: bool = False,
 ):
     query = select(User).where(User.user_id == user_id)
     result = await session.execute(query)
@@ -200,22 +202,36 @@ async def orm_add_user(
                 last_name=last_name,
                 phone=phone,
                 salon_id=salon_id,
+                is_super_admin=is_super_admin,
+                is_salon_admin=is_salon_admin,
             )
         )
         await session.commit()
 
 
-async def orm_get_user(session: AsyncSession, user_id: int):
-    result = await session.execute(select(User).where(User.user_id == user_id))
+async def orm_get_user(session: AsyncSession, user_id: int, salon_id: int | None = None):
+    stmt = select(User).where(User.user_id == user_id)
+    if salon_id is not None:
+        stmt = stmt.where(User.salon_id == salon_id)
+    result = await session.execute(stmt)
     return result.scalar()
 
 
 ######################## Работа с корзинами #######################################
 
-async def orm_add_to_cart(session: AsyncSession, user_id: int, product_id: int):
-    query = select(Cart).where(Cart.user_id == user_id, Cart.product_id == product_id).options(joinedload(Cart.product))
-    cart = await session.execute(query)
-    cart = cart.scalar()
+async def orm_add_to_cart(session: AsyncSession, user_id: int, product_id: int, salon_id: int):
+    # Ensure product belongs to the current salon
+    product_check = await session.execute(
+        select(Product.id).where(Product.id == product_id, Product.salon_id == salon_id)
+    )
+    if not product_check.scalar():
+        return
+
+    query = select(Cart).where(
+        Cart.user_id == user_id,
+        Cart.product_id == product_id
+    ).options(joinedload(Cart.product).joinedload(Product.salon))
+    cart = (await session.execute(query)).scalar()
     if cart:
         cart.quantity += 1
         await session.commit()
@@ -226,20 +242,31 @@ async def orm_add_to_cart(session: AsyncSession, user_id: int, product_id: int):
 
 
 
-async def orm_get_user_carts(session: AsyncSession, user_id):
-    query = select(Cart).filter(Cart.user_id == user_id).options(joinedload(Cart.product))
+async def orm_get_user_carts(session: AsyncSession, user_id: int, salon_id: int):
+    query = select(Cart).join(Product).where(
+        Cart.user_id == user_id,
+        Product.salon_id == salon_id
+    ).options(joinedload(Cart.product))
     result = await session.execute(query)
     return result.scalars().all()
 
 
-async def orm_delete_from_cart(session: AsyncSession, user_id: int, product_id: int):
-    query = delete(Cart).where(Cart.user_id == user_id, Cart.product_id == product_id)
+async def orm_delete_from_cart(session: AsyncSession, user_id: int, product_id: int, salon_id: int):
+    query = (
+        delete(Cart)
+        .where(Cart.user_id == user_id, Cart.product_id == product_id)
+        .where(Cart.product.has(Product.salon_id == salon_id))
+    )
     await session.execute(query)
     await session.commit()
 
 
-async def orm_reduce_product_in_cart(session: AsyncSession, user_id: int, product_id: int):
-    query = select(Cart).where(Cart.user_id == user_id, Cart.product_id == product_id).options(joinedload(Cart.product))
+async def orm_reduce_product_in_cart(session: AsyncSession, user_id: int, product_id: int, salon_id: int):
+    query = select(Cart).where(
+        Cart.user_id == user_id,
+        Cart.product_id == product_id,
+        Cart.product.has(Product.salon_id == salon_id)
+    ).options(joinedload(Cart.product))
     cart = await session.execute(query)
     cart = cart.scalar()
 
@@ -250,7 +277,7 @@ async def orm_reduce_product_in_cart(session: AsyncSession, user_id: int, produc
         await session.commit()
         return True
     else:
-        await orm_delete_from_cart(session, user_id, product_id)
+        await orm_delete_from_cart(session, user_id, product_id, salon_id)
         await session.commit()
         return False
 

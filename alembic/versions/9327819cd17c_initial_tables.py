@@ -57,6 +57,8 @@ def upgrade() -> None:
     sa.Column('last_name', sa.String(length=150), nullable=True),
     sa.Column('phone', sa.String(length=13), nullable=True),
     sa.Column('salon_id', sa.Integer(), nullable=True),
+    sa.Column('is_super_admin', sa.Boolean(), nullable=False, server_default=sa.text('false')),
+    sa.Column('is_salon_admin', sa.Boolean(), nullable=False, server_default=sa.text('false')),
     sa.Column('created', sa.DateTime(), nullable=False),
     sa.Column('updated', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['salon_id'], ['salon.id'], ),

@@ -93,17 +93,17 @@ async def products(session, level, category, page, salon_id):
 
 async def carts(session, level, menu_name, page, user_id, product_id, salon_id):
     if menu_name == "delete":
-        await orm_delete_from_cart(session, user_id, product_id)
+        await orm_delete_from_cart(session, user_id, product_id, salon_id)
         if page > 1:
             page -= 1
     elif menu_name == "decrement":
-        is_cart = await orm_reduce_product_in_cart(session, user_id, product_id)
+        is_cart = await orm_reduce_product_in_cart(session, user_id, product_id, salon_id)
         if page > 1 and not is_cart:
             page -= 1
     elif menu_name == "increment":
-        await orm_add_to_cart(session, user_id, product_id)
+        await orm_add_to_cart(session, user_id, product_id, salon_id)
 
-    carts = await orm_get_user_carts(session, user_id)
+    carts = await orm_get_user_carts(session, user_id, salon_id)
 
     if not carts:
         banner = await orm_get_banner(session, "cart", salon_id)

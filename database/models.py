@@ -5,6 +5,7 @@ from sqlalchemy import (
     String,
     Text,
     BigInteger,
+    Boolean,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -68,6 +69,8 @@ class User(Base):
     last_name: Mapped[str]  = mapped_column(String(150), nullable=True)
     phone: Mapped[str]  = mapped_column(String(13), nullable=True)
     salon_id: Mapped[int | None] = mapped_column(ForeignKey('salon.id'), nullable=True)
+    is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_salon_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     salon: Mapped['Salon'] = relationship(backref='users')
 
