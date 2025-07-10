@@ -202,19 +202,35 @@ async def orm_add_user(
 ):
     query = select(User).where(User.user_id == user_id)
     result = await session.execute(query)
-    if result.first() is None:
-        session.add(
-            User(
-                user_id=user_id,
-                first_name=first_name,
-                last_name=last_name,
-                phone=phone,
-                salon_id=salon_id,
-                is_super_admin=is_super_admin,
-                is_salon_admin=is_salon_admin,
-            )
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        user = User(
+            user_id=user_id,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            salon_id=salon_id,
+            is_super_admin=is_super_admin,
+            is_salon_admin=is_salon_admin,
         )
-        await session.commit()
+        session.add(user)
+    else:
+        if first_name is not None:
+            user.first_name = first_name
+        if last_name is not None:
+            user.last_name = last_name
+        if phone is not None:
+            user.phone = phone
+        if salon_id is not None:
+            user.salon_id = salon_id
+        if is_super_admin:
+            user.is_super_admin = True
+        if is_salon_admin:
+            user.is_salon_admin = True
+
+    await session.commit()
+    return user
 
 
 async def orm_get_user(session: AsyncSession, user_id: int, salon_id: int | None = None):

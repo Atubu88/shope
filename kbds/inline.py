@@ -18,7 +18,7 @@ class SalonCallBack(CallbackData, prefix="salon"):
 def get_user_main_btns(*, level: int, sizes: tuple[int] = (2,)):
     keyboard = InlineKeyboardBuilder()
     btns = {
-        "Товары 🍕": "catalog",
+        "Товары 🛍️": "catalog",
         "Корзина 🛒": "cart",
         "О нас ℹ️": "about",
         "Оплата 💰": "payment",

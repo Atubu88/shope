@@ -12,7 +12,6 @@ from middlewares.db import DataBaseSession
 from database.engine import create_db, drop_db, session_maker
 
 from handlers.user_private import user_private_router
-from handlers.user_group import user_group_router
 from handlers.admin_private import admin_router
 from handlers.order_processing import order_router
 from handlers.salon_creation import salon_creation_router
@@ -24,12 +23,12 @@ bot = Bot(
     token=os.getenv('TOKEN'),
     default=DefaultBotProperties(parse_mode=ParseMode.HTML)
 )
-bot.my_admins_list = []
+
 
 dp = Dispatcher()
 
 dp.include_router(user_private_router)
-dp.include_router(user_group_router)
+
 dp.include_router(admin_router)
 dp.include_router(salon_creation_router)
 dp.include_router(order_router)
