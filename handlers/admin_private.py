@@ -180,8 +180,9 @@ async def change_product_callback(
     callback: types.CallbackQuery, state: FSMContext, session: AsyncSession
 ):
     product_id = callback.data.split("_")[-1]
+    salon_id = ADMIN_SALON.get(callback.from_user.id)
 
-    product_for_change = await orm_get_product(session, int(product_id))
+    product_for_change = await orm_get_product(session, int(product_id), salon_id)
 
     AddProduct.product_for_change = product_for_change
 
