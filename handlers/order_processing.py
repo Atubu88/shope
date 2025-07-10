@@ -16,7 +16,8 @@ from kbds.inline import get_user_cart
 
 
 
-from database.orm_query import orm_get_user_carts
+from database.orm_query import orm_get_user_carts, orm_get_user
+
 
 # Определяем состояния для процесса заказа
 class OrderStates(StatesGroup):
@@ -31,8 +32,8 @@ class OrderStates(StatesGroup):
 
 order_router = Router()
 
-async def create_order_summary(session: AsyncSession, user_id: int):
-    cart_items = await orm_get_user_carts(session, user_id)
+async def create_order_summary(session: AsyncSession, user_id: int, salon_id: int):
+    cart_items = await orm_get_user_carts(session, user_id, salon_id)
     summary = "Ваш заказ:\n"
     total_cost = 0
     for item in cart_items:
@@ -49,7 +50,9 @@ async def handle_start_order(callback_query: CallbackQuery, state: FSMContext, s
     await callback_query.message.delete()
 
     # Получение текстового описания заказа
-    order_summary = await create_order_summary(session, user_id)
+    user = await orm_get_user(session, user_id)
+    salon_id = user.salon_id if user else None
+    order_summary = await create_order_summary(session, user_id, salon_id)
 
     # Установим состояние для подтверждения корзины
     await state.set_state(OrderStates.confirming_cart)
@@ -211,7 +214,9 @@ async def confirm_order(callback_query: CallbackQuery, state: FSMContext, sessio
     payment_method = data.get('payment_method', 'Не указан')  # Получаем способ оплаты из состояния
 
     # Получаем детали заказа
-    order_summary = await create_order_summary(session, user_id)
+    user = await orm_get_user(session, user_id)
+    salon_id = user.salon_id if user else None
+    order_summary = await create_order_summary(session, user_id, salon_id)
 
     # Формируем сообщение для администратора
     admin_message = (

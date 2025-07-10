@@ -35,13 +35,12 @@ def get_image_banner(image: str | None, description: str) -> InputMediaPhoto:
     """
     if image and image.startswith("AgACAg"):
         return InputMediaPhoto(media=image, caption=description)
-
     elif image and os.path.exists(image):
         return InputMediaPhoto(media=FSInputFile(image), caption=description)
-
     else:
         return InputMediaPhoto(media=FSInputFile("banners/default.jpg"),
-                               caption="Изображение не найдено или путь некорректен")
+                               caption=description)  # <--- ВОТ ЗДЕСЬ!
+
 
 
 
@@ -70,40 +69,57 @@ def pages(paginator: Paginator):
 
 
 async def products(session, level, category, page, salon_id):
-    products = await orm_get_products(session, category_id=category, salon_id=salon_id)
-    paginator = Paginator(products, page=page)
-    product = paginator.get_page()[0]
+    try:
+        products = await orm_get_products(session, category_id=category, salon_id=salon_id)
+        paginator = Paginator(products, page=page)
+        page_items = paginator.get_page()
 
-    image = get_image_banner(
-        product.image,
-        f"<strong>{product.name}</strong>\n{product.description}\nСтоимость: {round(product.price, 2)}\n"
-        f"<strong>Товар {paginator.page} из {paginator.pages}</strong>"
-    )
+        if not page_items:
+            # Если товаров нет — показываем сообщение и кнопки (например, назад/главное меню)
+            return (
+                get_image_banner(None, "В этой категории пока нет товаров. Попробуйте позже или выберите другую категорию."),
+                get_user_catalog_btns(level=1, categories=await orm_get_categories(session, salon_id))
+            )
 
-    pagination_btns = pages(paginator)
-    kbds = get_products_btns(
-        level=level,
-        category=category,
-        page=page,
-        pagination_btns=pagination_btns,
-        product_id=product.id,
-    )
-    return image, kbds
+        product = page_items[0]
+        image = get_image_banner(
+            product.image,
+            f"<strong>{product.name}</strong>\n{product.description}\nСтоимость: {round(product.price, 2)}\n"
+            f"<strong>Товар {paginator.page} из {paginator.pages}</strong>"
+        )
+
+        pagination_btns = pages(paginator)
+        kbds = get_products_btns(
+            level=level,
+            category=category,
+            page=page,
+            pagination_btns=pagination_btns,
+            product_id=product.id,
+        )
+        return image, kbds
+
+    except Exception as e:
+        # Логируем ошибку (или можешь отправить дефолтную картинку с текстом)
+        print(f"[products] Ошибка: {e}")
+        return (
+            get_image_banner(None, "Произошла непредвиденная ошибка при загрузке товаров. Попробуйте позже."),
+            get_user_catalog_btns(level=1, categories=[])
+        )
 
 
 async def carts(session, level, menu_name, page, user_id, product_id, salon_id):
     if menu_name == "delete":
-        await orm_delete_from_cart(session, user_id, product_id)
+        await orm_delete_from_cart(session, user_id, product_id, salon_id)
         if page > 1:
             page -= 1
     elif menu_name == "decrement":
-        is_cart = await orm_reduce_product_in_cart(session, user_id, product_id)
+        is_cart = await orm_reduce_product_in_cart(session, user_id, product_id, salon_id)
         if page > 1 and not is_cart:
             page -= 1
     elif menu_name == "increment":
-        await orm_add_to_cart(session, user_id, product_id)
+        await orm_add_to_cart(session, user_id, product_id, salon_id)
 
-    carts = await orm_get_user_carts(session, user_id)
+    carts = await orm_get_user_carts(session, user_id, salon_id)
 
     if not carts:
         banner = await orm_get_banner(session, "cart", salon_id)
