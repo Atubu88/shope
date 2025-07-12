@@ -15,6 +15,7 @@ from handlers.user_private import user_private_router
 from handlers.admin_private import admin_router
 from handlers.order_processing import order_router
 from handlers.salon_creation import salon_creation_router
+from handlersadmin.menu import admin_menu_router
 
 # ALLOWED_UPDATES = ['message', 'edited_message', 'callback_query']
 
@@ -28,8 +29,8 @@ bot = Bot(
 dp = Dispatcher()
 
 dp.include_router(user_private_router)
-
-dp.include_router(admin_router)
+dp.include_router(admin_menu_router)
+#dp.include_router(admin_router)
 dp.include_router(salon_creation_router)
 dp.include_router(order_router)
 
