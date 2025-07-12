@@ -48,6 +48,12 @@ class Paginator:
 
 
 ############################ Салоны ###########################################
+# database/orm_query.py
+async def get_salon_name_by_id(session, salon_id):
+    from database.models import Salon
+    salon = await session.get(Salon, salon_id)
+    return salon.name if salon else None
+
 
 async def orm_get_salons(session: AsyncSession):
     result = await session.execute(select(Salon))
