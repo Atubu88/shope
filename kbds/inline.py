@@ -172,3 +172,13 @@ def get_callback_btns(*, btns: dict[str, str], sizes: tuple[int] = (2,)) -> Inli
         keyboard.add(InlineKeyboardButton(text=text, callback_data=data))
 
     return keyboard.adjust(*sizes).as_markup()
+
+
+def get_admin_main_kb() -> InlineKeyboardMarkup:
+    btns = {
+        "Добавить товар": "admin_add_product",
+        "Ассортимент": "admin_products",
+        "Добавить/Изменить баннер": "admin_banners",
+        "Создать салон": "admin_create_salon",
+    }
+    return get_callback_btns(btns=btns, sizes=(2,))

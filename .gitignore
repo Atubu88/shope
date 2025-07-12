@@ -1,8 +1,40 @@
+# Секреты и переменные окружения
 .env
 
+# Python artifacts
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Виртуальные окружения
 venv/
+.venv/
+
+# Базы данных (локальные)
 *.db
+
+# IDE/Editor configs
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# alembic (если миграции, лучше оставить migrations/ в репозитории, но если что-то генерируется локально — добавить сюда)
+# migrations/   # ← не добавляй, если там миграции нужны всем
+
+# Jupyter notebook checkpoints (если используешь)
+.ipynb_checkpoints/
+
+# Лог-файлы
+*.log
+
+# Кэш, temp-файлы
+*.swp
+*.bak
+*.tmp
+.DS_Store
+
+# test output (например, pytest)
+.cache/
+htmlcov/
