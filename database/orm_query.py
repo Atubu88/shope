@@ -182,6 +182,14 @@ async def orm_update_product(session: AsyncSession, product_id: int, data, salon
     await session.execute(query)
     await session.commit()
 
+async def orm_change_product_image(session: AsyncSession, product_id: int, image: str, salon_id: int):
+    query = (
+        update(Product)
+        .where(Product.id == product_id, Product.salon_id == salon_id)
+        .values(image=image)
+    )
+    await session.execute(query)
+    await session.commit()
 
 async def orm_delete_product(session: AsyncSession, product_id: int, salon_id: int):
     query = delete(Product).where(Product.id == product_id, Product.salon_id == salon_id)
