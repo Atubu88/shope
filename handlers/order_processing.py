@@ -1,288 +1,322 @@
-# order_processing.py
-import re
-
-from aiogram import Router, types
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, \
-    ReplyKeyboardMarkup, FSInputFile
-from aiogram.fsm.state import State, StatesGroup
+from aiogram import Router, types, F
+from aiogram.types import (
+    InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery,
+    ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+)
+from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import StateFilter
 from sqlalchemy.ext.asyncio import AsyncSession
-from aiogram.types import ContentType
 
-from handlers.menu_processing import carts, get_menu_content, main_menu
-from handlers.user_private import start_cmd
-from kbds.inline import get_user_cart
-
-
-
-from database.orm_query import orm_get_user_carts, orm_get_user
-
-
-# Определяем состояния для процесса заказа
-class OrderStates(StatesGroup):
-    confirming_cart = State()
-    level_3 = State()
-    choosing_delivery = State()
-    entering_address = State()
-    confirming_address = State()
-    choosing_payment = State()
-    requesting_phone_number = State()  # Убедитесь, что это состояние существует
-    confirming_order = State()
+from handlers.menu_processing import get_menu_content
+from utils.geo import haversine, calc_delivery_cost, get_address_from_coords
+from database.orm_query import orm_get_user_carts, orm_get_user, orm_get_salon_by_id
 
 order_router = Router()
 
-async def create_order_summary(session: AsyncSession, user_id: int, salon_id: int):
+class OrderStates(StatesGroup):
+    choosing_delivery = State()
+    entering_address = State()
+    confirming_address = State()
+    entering_apartment = State()     # <---- Новый шаг!
+    entering_phone = State()
+    confirming_order = State()
+
+def get_delivery_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Курьер", callback_data="delivery_courier")],
+        [InlineKeyboardButton(text="Самовывоз", callback_data="delivery_pickup")],
+        [InlineKeyboardButton(text="⬅️ Назад в корзину", callback_data="back_to_cart")],
+    ])
+
+def get_confirm_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Подтвердить заказ", callback_data="confirm_order")],
+        [InlineKeyboardButton(text="Назад", callback_data="back_to_phone")],
+    ])
+
+def geo_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
+            [KeyboardButton(text="Назад")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+def confirm_address_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Да", callback_data="address_ok")],
+        [InlineKeyboardButton(text="✏️ Ввести вручную", callback_data="address_manual")]
+    ])
+
+async def get_order_summary(session: AsyncSession, user_id: int, salon_id: int, state_data: dict) -> str:
     cart_items = await orm_get_user_carts(session, user_id, salon_id)
-    summary = "Ваш заказ:\n"
-    total_cost = 0
+    lines = []
+    total = 0
     for item in cart_items:
         item_cost = item.product.price * item.quantity
-        total_cost += item_cost
-        summary += f"- {item.product.name}: {item.product.price}$ x {item.quantity} = {item_cost}$\n"
-    summary += f"\nОбщая стоимость: {total_cost}$"
-    return summary
+        total += item_cost
+        lines.append(f"- {item.product.name} {item.quantity} x {item.product.price}₽ = {item_cost}₽")
+    delivery_cost = int(state_data.get("delivery_cost") or 0)
+    delivery_text = ""
+    if state_data.get("delivery") == "delivery_courier":
+        delivery_text = f"Курьер (+{delivery_cost}₽)"
+    elif state_data.get("delivery") == "delivery_pickup":
+        delivery_text = "Самовывоз (0₽)"
+    else:
+        delivery_text = "Не выбран"
 
-# Хендлер для подтверждения корзины и выбора способа доставки
-@order_router.callback_query(lambda c: c.data == 'start_order')
-async def handle_start_order(callback_query: CallbackQuery, state: FSMContext, session: AsyncSession):
-    user_id = callback_query.from_user.id
-    await callback_query.message.delete()
+    total_with_delivery = total + delivery_cost
 
-    # Получение текстового описания заказа
+    text = "Ваш заказ:\n" + "\n".join(lines)
+    text += f"\n\nДоставка: {delivery_text}"
+    if state_data.get("address"):
+        text += f"\nАдрес: {state_data['address']}"
+    if state_data.get("distance_km") is not None:
+        text += f"\nРасстояние: {state_data['distance_km']:.2f} км"
+    text += f"\n\n<b>Итого: {total_with_delivery}₽</b>"
+    return text
+
+# --- Старт оформления ---
+@order_router.callback_query(F.data == "start_order")
+async def start_order(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    await callback.message.delete()
+    user_id = callback.from_user.id
     user = await orm_get_user(session, user_id)
     salon_id = user.salon_id if user else None
-    order_summary = await create_order_summary(session, user_id, salon_id)
 
-    # Установим состояние для подтверждения корзины
-    await state.set_state(OrderStates.confirming_cart)
-
-    # Создание клавиатуры для подтверждения корзины и выбора доставки
-    delivery_options = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Подтвердить корзину", callback_data="confirm_cart")],
-        [InlineKeyboardButton(text="Назад", callback_data="back_to_start")]
-    ])
-
-    await callback_query.message.answer(
-        f"{order_summary}\n\nПодтвердите корзину или вернитесь для редактирования.",
-        reply_markup=delivery_options
+    state_data = {"delivery": None, "address": None, "delivery_cost": 0, "distance_km": None}
+    summary = await get_order_summary(session, user_id, salon_id, state_data)
+    msg = await callback.message.answer(
+        summary + "\n\nВыберите способ доставки:",
+        reply_markup=get_delivery_kb(),
+        parse_mode="HTML"
+    )
+    await state.set_state(OrderStates.choosing_delivery)
+    await state.update_data(
+        last_msg_id=msg.message_id,
+        delivery=None, address=None, delivery_cost=0, distance_km=None
     )
 
-# Обработчик для подтверждения корзины и перехода к выбору способа доставки
-@order_router.callback_query(StateFilter(OrderStates.confirming_cart), lambda c: c.data == 'confirm_cart')
-async def confirm_cart(callback_query: CallbackQuery, state: FSMContext):
-    await callback_query.message.delete()
-    await state.set_state(OrderStates.choosing_delivery)
+# --- Доставка: Курьер ---
+@order_router.callback_query(OrderStates.choosing_delivery, F.data == "delivery_courier")
+async def choose_delivery_courier(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    await state.update_data(delivery="delivery_courier", address=None, delivery_cost=0, distance_km=None)
+    last_msg_id = data["last_msg_id"]
 
-    delivery_options = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Курьер", callback_data="choose_delivery_courier")],
-        [InlineKeyboardButton(text="Самовывоз", callback_data="choose_delivery_pickup")],
-        [InlineKeyboardButton(text="Назад", callback_data="back_to_cart")]
-    ])
-
-    await callback_query.message.answer("Выберите способ доставки:", reply_markup=delivery_options)
-
-# Обработчик для выбора доставки курьером
-@order_router.callback_query(StateFilter(OrderStates.choosing_delivery), lambda c: c.data == 'choose_delivery_courier')
-async def handle_courier_delivery(callback_query: CallbackQuery, state: FSMContext):
-    await callback_query.message.delete_reply_markup()  # Удаляем предыдущую клавиатуру
-    await callback_query.message.delete()
+    await callback.bot.edit_message_text(
+        chat_id=callback.message.chat.id,
+        message_id=last_msg_id,
+        text="Пожалуйста, отправьте геолокацию для расчёта стоимости доставки.",
+        reply_markup=None
+    )
+    geo_keyboard_msg = await callback.message.answer(
+        "Отправьте геолокацию кнопкой ниже ⬇️",
+        reply_markup=geo_keyboard()
+    )
+    await state.update_data(geo_msg_id=geo_keyboard_msg.message_id)
     await state.set_state(OrderStates.entering_address)
 
-    back_button = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Назад", callback_data="back_to_delivery_choice")]
-    ])
+# --- Получение геолокации пользователя и подтверждение ---
+@order_router.message(OrderStates.entering_address, F.location)
+async def receive_location(message: types.Message, state: FSMContext, session: AsyncSession):
+    user_lat = message.location.latitude
+    user_lon = message.location.longitude
 
-    await callback_query.message.answer(
-        "Пожалуйста, введите адрес доставки.",
-        reply_markup=back_button
-    )
-
-# Обработчик для выбора самовывоза
-# Хендлер для выбора доставки курьером
-@order_router.callback_query(StateFilter(OrderStates.choosing_delivery), lambda c: c.data == 'choose_delivery_pickup')
-async def handle_pickup_delivery(callback_query: CallbackQuery, state: FSMContext):
-    await callback_query.message.delete()
-    await state.set_state(OrderStates.choosing_payment)
-
-    payment_options = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Оплата картой", callback_data="choose_payment_card")],
-        [InlineKeyboardButton(text="Оплата наличными", callback_data="choose_payment_cash")],
-        [InlineKeyboardButton(text="Назад", callback_data="back_to_delivery_choice")]  # Универсальный хендлер
-    ])
-
-    await callback_query.message.answer(
-        "Вы выбрали самовывоз. Пожалуйста, выберите способ оплаты:",
-        reply_markup=payment_options
-    )
-
-# Обработчик для ввода адреса доставки
-@order_router.message(StateFilter(OrderStates.entering_address))
-async def enter_address(message: types.Message, state: FSMContext):
-    address = message.text
-    await state.update_data(address=address)
-
-    await state.set_state(OrderStates.confirming_address)
-
-    confirm_markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Подтвердить адрес", callback_data="confirm_address")],
-        [InlineKeyboardButton(text="Назад", callback_data="back_to_delivery_choice")]
-    ])
-
-    await message.answer(f"Вы указали адрес: {address}\nПодтвердите адрес или измените его.", reply_markup=confirm_markup)
-
-# Обработчик для подтверждения адреса
-@order_router.callback_query(StateFilter(OrderStates.confirming_address), lambda c: c.data == 'confirm_address')
-async def confirm_address(callback_query: CallbackQuery, state: FSMContext):
-    await callback_query.message.delete()
-    await state.set_state(OrderStates.choosing_payment)
-
-    payment_options = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Оплата картой", callback_data="choose_payment_card")],
-        [InlineKeyboardButton(text="Оплата наличными", callback_data="choose_payment_cash")],
-        [InlineKeyboardButton(text="Назад", callback_data="back_to_delivery_choice")]
-    ])
-
-    await callback_query.message.answer("Адрес подтвержден. Выберите способ оплаты:", reply_markup=payment_options)
-
-# Обработчик для выбора способа оплаты
-# Хендлер для запроса номера телефона вручную
-# Хендлер для выбора способа оплаты
-@order_router.callback_query(lambda c: c.data.startswith('choose_payment'))
-async def choose_payment(callback_query: CallbackQuery, state: FSMContext):
-    # Определение способа оплаты на основе данных из нажатой кнопки
-    payment_method = "Картой" if callback_query.data == 'choose_payment_card' else "Наличными"
-
-    # Сохранение способа оплаты в состоянии
-    await state.update_data(payment_method=payment_method)
-
-    # Уведомляем пользователя о выбранном способе оплаты
-    await callback_query.message.answer(f"Вы выбрали способ оплаты: {payment_method}.")
-
-    # Удаление предыдущей клавиатуры, чтобы избежать повторного отображения кнопки
-    await callback_query.message.delete_reply_markup()
-
-    # Переход к следующему шагу — запросу ввода номера телефона вручную
-    await state.set_state(OrderStates.requesting_phone_number)
-
-    # Сообщение пользователю с инструкцией ввести номер телефона вручную
-    await callback_query.message.answer("Пожалуйста, введите ваш номер телефона вручную.")
-
-# Хендлер для обработки ввода номера телефона вручную
-# Хендлер для обработки ввода номера телефона вручную
-@order_router.message(StateFilter(OrderStates.requesting_phone_number))
-async def receive_phone_number(message: types.Message, state: FSMContext):
-    phone_number = message.text.strip()  # Удаляем пробелы вокруг номера телефона
-
-    # Проверка валидности номера телефона с использованием регулярных выражений
-    if re.match(r"^\+?\d{10,15}$", phone_number):  # Проверяет формат номера телефона
-        # Сохраняем номер телефона в данные состояния
-        await state.update_data(phone_number=phone_number)
-
-        # Подтверждение для пользователя
-        await message.answer("Спасибо! Ваш номер телефона получен и сохранен.")
-
-        # Переход к следующему шагу — подтверждению заказа
-        await state.set_state(OrderStates.confirming_order)
-
-        # Создание клавиатуры для подтверждения заказа
-        confirm_order_markup = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Подтвердить заказ", callback_data="confirm_order")],
-            [InlineKeyboardButton(text="Назад", callback_data="back_to_payment_choice")]
-        ])
-
-        await message.answer(
-            "Вы выбрали способ оплаты. Подтвердите заказ или измените его.",
-            reply_markup=confirm_order_markup
-        )
-    else:
-        # Сообщение об ошибке, если введенный текст не является номером телефона
-        await message.answer("Введен неверный номер телефона. Пожалуйста, введите номер телефона в формате +71234567890 или 81234567890.")
-# Обработчик для подтверждения заказа
-# Хендлер для подтверждения заказа и отправки уведомления администратору
-@order_router.callback_query(StateFilter(OrderStates.confirming_order), lambda c: c.data == 'confirm_order')
-async def confirm_order(callback_query: CallbackQuery, state: FSMContext, session: AsyncSession):
-    await callback_query.message.delete()
-
-    # Получение данных заказа из состояния
     data = await state.get_data()
-    user_id = callback_query.from_user.id
-    user_name = callback_query.from_user.full_name or callback_query.from_user.username
-    user_profile = f"[{user_name}](tg://user?id={user_id})"  # Ссылка на профиль пользователя
-    address = data.get('address', 'Самовывоз')  # Получаем адрес из состояния или используем "Самовывоз" по умолчанию
-    phone_number = data.get('phone_number', 'Не указан')
-    payment_method = data.get('payment_method', 'Не указан')  # Получаем способ оплаты из состояния
-
-    # Получаем детали заказа
+    geo_msg_id = data.get("geo_msg_id")
+    user_id = message.from_user.id
     user = await orm_get_user(session, user_id)
     salon_id = user.salon_id if user else None
-    order_summary = await create_order_summary(session, user_id, salon_id)
+    salon = await orm_get_salon_by_id(session, salon_id)
+    if not salon.latitude or not salon.longitude:
+        await message.answer("Ошибка: координаты салона не заданы.")
+        return
 
-    # Формируем сообщение для администратора
-    admin_message = (
-        f"Новый заказ от пользователя {user_profile}:\n"
-        f"Адрес: {address}\n"
-        f"Телефон: {phone_number}\n"
-        f"Способ оплаты: {payment_method}\n"
-        f"{order_summary}\n"
+    salon_lat = float(salon.latitude)
+    salon_lon = float(salon.longitude)
+    distance_km = haversine(salon_lat, salon_lon, user_lat, user_lon)
+    delivery_cost = calc_delivery_cost(distance_km)
+
+    # --- Получаем строку-адрес
+    address_str = get_address_from_coords(user_lat, user_lon) or f"Геолокация ({user_lat:.5f}, {user_lon:.5f})"
+    await state.update_data(address=address_str, delivery_cost=delivery_cost, distance_km=distance_km,
+                            geo_lat=user_lat, geo_lon=user_lon)
+    # Удаляем сообщение с клавиатурой геолокации
+    if geo_msg_id:
+        try:
+            await message.bot.delete_message(chat_id=message.chat.id, message_id=geo_msg_id)
+        except Exception:
+            pass
+
+    # Отправляем подтверждение адреса!
+    text = f"Вы находитесь по адресу:\n<b>{address_str}</b>\nВсё верно?"
+    msg = await message.answer(
+        text,
+        reply_markup=confirm_address_kb(),
+        parse_mode="HTML"
+    )
+    await state.set_state(OrderStates.confirming_address)
+    await state.update_data(confirm_addr_msg_id=msg.message_id)
+
+# --- Обработка подтверждения адреса ---
+@order_router.callback_query(OrderStates.confirming_address, F.data == "address_ok")
+async def address_ok(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    last_msg_id = data.get("confirm_addr_msg_id")
+    # Удалить сообщение с подтверждением адреса
+    try:
+        await callback.bot.delete_message(chat_id=callback.message.chat.id, message_id=last_msg_id)
+    except Exception:
+        pass
+    await state.set_state(OrderStates.entering_apartment)  # <--- Новый шаг!
+    await callback.message.answer(
+        "Пожалуйста, укажите номер квартиры (или подъезда, офиса):",
+        reply_markup=ReplyKeyboardRemove()
     )
 
-    # Отправка уведомления администратору
-    admin_chat_id = -1002231413484  # Замените на ID чата администратора
-    await callback_query.bot.send_message(
-        admin_chat_id,
-        admin_message,
-        parse_mode="Markdown"  # Используйте HTML, если предпочитаете другой формат
+# --- Получение номера квартиры ---
+@order_router.message(OrderStates.entering_apartment)
+async def receive_apartment(message: types.Message, state: FSMContext):
+    apartment = message.text.strip()
+    data = await state.get_data()
+    # Добавляем к адресу
+    full_address = data["address"]
+    if apartment:
+        full_address += f", кв./офис {apartment}"
+    await state.update_data(address=full_address)
+    await state.set_state(OrderStates.entering_phone)
+    await message.answer("Введите ваш номер телефона:")
+
+# --- Обработка ручного ввода адреса ---
+@order_router.callback_query(OrderStates.confirming_address, F.data == "address_manual")
+async def address_manual(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    last_msg_id = data.get("confirm_addr_msg_id")
+    try:
+        await callback.bot.delete_message(chat_id=callback.message.chat.id, message_id=last_msg_id)
+    except Exception:
+        pass
+    await state.set_state(OrderStates.entering_address)
+    await callback.message.answer("Пожалуйста, введите адрес вручную:")
+
+# --- Ввод телефона ---
+@order_router.message(OrderStates.entering_phone)
+async def enter_phone(message: types.Message, state: FSMContext, session: AsyncSession):
+    phone = message.text.strip()
+    data = await state.get_data()
+    last_msg_id = data.get("last_msg_id")
+    await state.update_data(phone=phone)
+    await state.set_state(OrderStates.confirming_order)
+
+    user_id = message.from_user.id
+    user = await orm_get_user(session, user_id)
+    salon_id = user.salon_id if user else None
+
+    summary = await get_order_summary(session, user_id, salon_id, {**data, "phone": phone})
+
+    # Удалить старое сообщение, если есть
+    if last_msg_id:
+        try:
+            await message.bot.delete_message(chat_id=message.chat.id, message_id=last_msg_id)
+        except Exception:
+            pass
+
+    msg = await message.answer(
+        summary + "\n\nПроверьте все данные и подтвердите заказ!",
+        reply_markup=get_confirm_kb(),
+        parse_mode="HTML"
+    )
+    await state.update_data(last_msg_id=msg.message_id)
+
+# --- Подтверждение ---
+@order_router.callback_query(OrderStates.confirming_order, F.data == "confirm_order")
+async def confirm_order(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    await callback.answer("Заказ подтверждён и отправлен!")
+    await callback.message.edit_text("Спасибо! Ваш заказ принят 👍")
+    await state.clear()
+
+
+
+@order_router.callback_query(F.data == "back_to_cart")
+async def back_to_cart(callback: CallbackQuery, state: FSMContext, session):
+    user_id = callback.from_user.id
+
+    # Получаем содержимое корзины через твой универсальный get_menu_content
+    # Если уровень меню для корзины = 3 (или у тебя другое значение — подставь своё)
+    image, kbds = await get_menu_content(
+        session=session,
+        level=3,           # Обычно 3 — это корзина, но проверь свою логику уровней!
+        menu_name="main",  # Или "cart", если так у тебя называется корзина
+        page=1,
+        user_id=user_id,
+        product_id=None,
     )
 
-    # Подтверждение для пользователя
-    await callback_query.message.answer("Ваш заказ подтвержден и отправлен на обработку. Спасибо за покупку!")
+    # Удаляем сообщение, из которого пришёл callback (если нужно)
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+
+    # Отправляем пользователю корзину (фото + подпись + кнопки)
+    # image — это InputMediaPhoto
+    await callback.message.answer_photo(
+        photo=image.media,          # file_id, FSInputFile или ссылка
+        caption=image.caption,      # Описание, смотри get_image_banner
+        reply_markup=kbds,
+        parse_mode="HTML"
+    )
+
+    # Сбрасываем состояние, если нужно
     await state.clear()
-# Хендлеры для кнопок "Назад"
-#
-#
-# Пример хендлера, который возвращает в корзину
-
-@order_router.callback_query(lambda c: c.data == 'back_to_start')
-async def back_to_start(callback_query: CallbackQuery, state: FSMContext, session: AsyncSession):
-    await callback_query.message.delete()
-
-    # Сбрасываем состояние
-    await state.clear()
-
-    # Повторный вызов стартовой команды
-    await start_cmd(callback_query.message, session)
-
-@order_router.callback_query(lambda c: c.data == 'back_to_cart')
-async def back_to_cart(callback_query: CallbackQuery, state: FSMContext, session: AsyncSession):
-    # Вызовем хендлер для подтверждения корзины
-    await handle_start_order(callback_query, state, session)
 
 
+# --- Доставка: Самовывоз ---
+@order_router.callback_query(OrderStates.choosing_delivery, F.data == "delivery_pickup")
+async def choose_delivery_pickup(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    last_msg_id = data["last_msg_id"]
 
-# Хендлер для кнопки "Назад" на этапе ввода адреса
-@order_router.callback_query(lambda c: c.data == 'back_to_delivery_choice')
-async def back_to_delivery_choice(callback_query: CallbackQuery, state: FSMContext):
-    await callback_query.message.delete()
-    await state.set_state(OrderStates.choosing_delivery)
+    # Обновляем данные заказа: тип доставки, стоимость = 0, адрес = адрес салона
+    user_id = callback.from_user.id
+    user = await orm_get_user(session, user_id)
+    salon_id = user.salon_id if user else None
+    salon = await orm_get_salon_by_id(session, salon_id)
+    address = f"{salon.name}, {salon.address}" if hasattr(salon, "address") and salon.address else "Адрес салона уточните у администратора"
 
-    # Клавиатура для выбора способа доставки
-    delivery_options = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Курьер", callback_data="choose_delivery_courier")],
-        [InlineKeyboardButton(text="Самовывоз", callback_data="choose_delivery_pickup")],
-        [InlineKeyboardButton(text="Назад", callback_data="back_to_cart")]
-    ])
+    await state.update_data(
+        delivery="delivery_pickup",
+        delivery_cost=0,
+        address=address,
+        distance_km=None
+    )
 
-    await callback_query.message.answer("Выберите способ доставки:", reply_markup=delivery_options)
-@order_router.callback_query(lambda c: c.data == 'back_to_payment_choice')
-async def back_to_payment_choice(callback_query: CallbackQuery, state: FSMContext):
-    await callback_query.message.delete()
-    await state.set_state(OrderStates.choosing_payment)
+    # Формируем итоговый текст заказа
+    summary = await get_order_summary(session, user_id, salon_id, {
+        **data,
+        "delivery": "delivery_pickup",
+        "delivery_cost": 0,
+        "address": address,
+        "distance_km": None
+    })
 
-    payment_options = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Оплата картой", callback_data="choose_payment_card")],
-        [InlineKeyboardButton(text="Оплата наличными", callback_data="choose_payment_cash")],
-        [InlineKeyboardButton(text="Назад", callback_data="back_to_delivery_choice")]
-    ])
+    # Обновляем сообщение
+    try:
+        await callback.bot.edit_message_text(
+            chat_id=callback.message.chat.id,
+            message_id=last_msg_id,
+            text=summary + "\n\nПроверьте данные и подтвердите заказ!",
+            reply_markup=get_confirm_kb(),
+            parse_mode="HTML"
+        )
+    except Exception:
+        await callback.message.answer(
+            summary + "\n\nПроверьте данные и подтвердите заказ!",
+            reply_markup=get_confirm_kb(),
+            parse_mode="HTML"
+        )
 
-    await callback_query.message.answer("Выберите способ оплаты:", reply_markup=payment_options)
+    await state.set_state(OrderStates.confirming_order)

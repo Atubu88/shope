@@ -36,6 +36,8 @@ def admin_keyboard() -> InlineKeyboardMarkup:
                                   callback_data="admin_banners")],
             [InlineKeyboardButton(text="🏠 Создать салон",
                                   callback_data="admin_create_salon")],
+            [InlineKeyboardButton(text="⚙️ Настройки",
+                                  callback_data="admin_settings")],
         ]
     )
 

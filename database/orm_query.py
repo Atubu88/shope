@@ -77,6 +77,25 @@ async def orm_get_salon_by_slug(session: AsyncSession, slug: str):
     result = await session.execute(select(Salon).where(Salon.slug == slug))
     return result.scalar_one_or_none()
 
+async def orm_update_salon_location(
+    session: AsyncSession, salon_id: int, latitude: float, longitude: float
+) -> None:
+    await session.execute(
+        update(Salon)
+        .where(Salon.id == salon_id)
+        .values(latitude=latitude, longitude=longitude)
+    )
+    await session.commit()
+
+async def orm_get_salon_by_id(session, salon_id: int):
+    """
+    Получить салон по его ID (асинхронно для SQLAlchemy 2.x).
+    """
+    result = await session.execute(
+        select(Salon).where(Salon.id == salon_id)
+    )
+    return result.scalars().first()
+
 ############### Работа с баннерами (информационными страницами) ###############
 
 async def orm_add_banner_description(session: AsyncSession, data: dict, salon_id: int):

@@ -16,6 +16,7 @@ from handlers.admin_private import admin_router
 from handlersadmin.add_product import add_product_router
 from handlersadmin.products import products_router
 from handlersadmin.banner import banner_router
+from handlersadmin.settings import settings_router
 from handlers.order_processing import order_router
 from handlers.salon_creation import salon_creation_router
 from handlersadmin.menu import admin_menu_router
@@ -36,7 +37,7 @@ dp.include_router(admin_menu_router)
 dp.include_router(add_product_router)
 dp.include_router(banner_router)
 dp.include_router(products_router)
-
+dp.include_router(settings_router)
 #dp.include_router(admin_router)
 dp.include_router(salon_creation_router)
 dp.include_router(order_router)
