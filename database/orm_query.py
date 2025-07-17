@@ -87,6 +87,17 @@ async def orm_update_salon_location(
     )
     await session.commit()
 
+async def orm_update_salon_group_chat(
+    session: AsyncSession, salon_id: int, group_chat_id: int
+) -> None:
+    await session.execute(
+        update(Salon)
+        .where(Salon.id == salon_id)
+        .values(group_chat_id=group_chat_id)
+    )
+    await session.commit()
+
+
 async def orm_get_salon_by_id(session, salon_id: int):
     """
     Получить салон по его ID (асинхронно для SQLAlchemy 2.x).

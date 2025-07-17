@@ -1,5 +1,6 @@
 from aiogram import F, types, Router
 from aiogram.filters import CommandStart
+from aiogram.fsm.context import FSMContext
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +24,11 @@ user_private_router.message.filter(ChatTypeFilter(["private"]))
 
 
 @user_private_router.message(CommandStart())
-async def start_cmd(message: types.Message, session: AsyncSession):
+async def start_cmd(message: types.Message,
+                    state: FSMContext,          # ➊ добавляем
+                    session: AsyncSession):
+    # ➋ сбрасываем контекст до любых операций
+    await state.clear()
     args = message.text.split()
     param = args[1] if len(args) > 1 else None
     salon_id = None

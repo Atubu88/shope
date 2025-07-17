@@ -23,18 +23,25 @@ def prettify_address(address_json):
     if not address_json:
         return None
     address = address_json.get("address", {})
-    # Nominatim поля могут быть: road, house_number, city/town/village, suburb
     road = address.get("road") or address.get("pedestrian") or ""
     house_number = address.get("house_number") or ""
     suburb = address.get("suburb") or ""
     city = address.get("city") or address.get("town") or address.get("village") or ""
-    # Собираем коротко
+    # Собираем адрес красиво:
     parts = []
-    if road: parts.append(road)
-    if house_number: parts[-1] += f", {house_number}"  # Ставим номер к улице
-    if suburb: parts.append(suburb)
-    if city: parts.append(city)
-    return ", ".join(parts)
+    if road:
+        if house_number:
+            parts.append(f"{road}, {house_number}")
+        else:
+            parts.append(road)
+    elif house_number:
+        parts.append(house_number)
+    if suburb:
+        parts.append(suburb)
+    if city:
+        parts.append(city)
+    return ", ".join(parts) if parts else None
+
 
 
 
@@ -53,8 +60,14 @@ def get_address_from_coords(lat, lon):
     try:
         resp = requests.get(url, params=params, headers=headers, timeout=7)
         data = resp.json()
+        # передаем не весь data, а только address, но твой prettify_address работает и с data
         short_addr = prettify_address(data)
-        return short_addr or data.get("display_name")
-    except Exception:
+        if short_addr:
+            return short_addr
+        # если не удалось — возвращаем полный адрес
+        return data.get("display_name")
+    except Exception as e:
+        print(f"Ошибка при получении адреса: {e}")
         return None
+
 

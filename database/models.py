@@ -23,6 +23,7 @@ class Salon(Base):
     slug: Mapped[str] = mapped_column(String(50), unique=True)
     latitude: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
     longitude: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
+    group_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
 
 class Banner(Base):

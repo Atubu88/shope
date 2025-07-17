@@ -13,7 +13,10 @@ from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .menu import show_admin_menu
-from database.orm_query import orm_update_salon_location
+from database.orm_query import orm_update_salon_location, orm_get_user, orm_update_salon_group_chat
+from filters.chat_types import IsAdmin
+from aiogram import types
+from aiogram.filters import Command
 
 settings_router = Router()
 
@@ -99,3 +102,16 @@ async def cancel_location(message: Message, state: FSMContext, session: AsyncSes
         await show_admin_menu(state, message.chat.id, message.bot, session)
     else:
         await message.answer("Нажмите кнопку отправки геолокации или 'Отмена'.")
+
+
+
+
+@settings_router.message(Command("set_group"), IsAdmin())
+async def set_group(message: types.Message, session: AsyncSession):
+    user = await orm_get_user(session, message.from_user.id)
+    salon_id = user.salon_id if user else None
+    if not salon_id:
+        await message.reply("Ваш аккаунт не привязан к салону.")
+        return
+    await orm_update_salon_group_chat(session, salon_id, message.chat.id)
+    await message.reply("Группа успешно привязана")
