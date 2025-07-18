@@ -141,6 +141,16 @@ async def orm_change_banner_image(session: AsyncSession, name: str, image: str, 
     await session.commit()
 
 
+async def orm_change_banner_description(session: AsyncSession, name: str, description: str, salon_id: int):
+    query = (
+        update(Banner)
+        .where(Banner.name == name, Banner.salon_id == salon_id)
+        .values(description=description)
+    )
+    await session.execute(query)
+    await session.commit()
+
+
 async def orm_get_banner(session: AsyncSession, page: str, salon_id: int):
     query = select(Banner).where(Banner.name == page, Banner.salon_id == salon_id)
     result = await session.execute(query)
