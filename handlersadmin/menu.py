@@ -32,6 +32,8 @@ def admin_keyboard() -> InlineKeyboardMarkup:
                                   callback_data="admin_add_product")],
             [InlineKeyboardButton(text="📋 Ассортимент",
                                   callback_data="admin_products")],
+            [InlineKeyboardButton(text="\uD83D\uDCC2 Категории",
+                                  callback_data="admin_categories")],
             [InlineKeyboardButton(text="🎨 Добавить/Изменить баннер",
                                   callback_data="admin_banners")],
             [InlineKeyboardButton(text="✏️ Описание баннера",
