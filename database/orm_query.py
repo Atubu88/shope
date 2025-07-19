@@ -358,3 +358,13 @@ async def orm_reduce_product_in_cart(session: AsyncSession, user_id: int, produc
         await orm_delete_from_cart(session, user_id, product_id, salon_id)
         await session.commit()
         return False
+
+
+async def orm_clear_cart(session: AsyncSession, user_id: int, salon_id: int) -> None:
+    query = (
+        delete(Cart)
+        .where(Cart.user_id == user_id)
+        .where(Cart.product.has(Product.salon_id == salon_id))
+    )
+    await session.execute(query)
+    await session.commit()

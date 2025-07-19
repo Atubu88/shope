@@ -115,3 +115,16 @@ async def set_group(message: types.Message, session: AsyncSession):
         return
     await orm_update_salon_group_chat(session, salon_id, message.chat.id)
     await message.reply("Группа успешно привязана")
+
+
+TELEGRAPH_ABOUT_URL = "https://telegra.ph/aucacuva-07-18"
+
+@settings_router.message(Command("about"))
+async def about_command(message: Message):
+    """
+    Отправляет ссылку на страницу с описанием бота.
+    """
+    await message.answer(
+        "ℹ️ Подробное описание и возможности демо‑бота:\n"
+        f"{TELEGRAPH_ABOUT_URL}"
+    )

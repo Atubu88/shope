@@ -11,7 +11,7 @@ from utils.notifications import notify_salon_about_order
 from utils.orders import get_order_summary
 from handlers.menu_processing import get_menu_content
 from utils.geo import haversine, calc_delivery_cost, get_address_from_coords
-from database.orm_query import orm_get_user_carts, orm_get_user, orm_get_salon_by_id
+from database.orm_query import orm_get_user_carts, orm_get_user, orm_get_salon_by_id, orm_clear_cart
 
 order_router = Router()
 
@@ -458,6 +458,11 @@ async def confirm_order(callback: CallbackQuery,
     except Exception:
         pass
 
+    user_id = callback.from_user.id
+    user = await orm_get_user(session, user_id)
+    salon_id = user.salon_id if user else None
+    if salon_id:
+        await orm_clear_cart(session, user_id, salon_id)
     # 3. благодарим клиента
     await callback.message.answer("Спасибо! Ваш заказ принят 👍")
     await callback.answer()
