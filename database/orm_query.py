@@ -178,6 +178,17 @@ async def orm_create_categories(session: AsyncSession, categories: list, salon_i
     session.add_all([Category(name=name, salon_id=salon_id) for name in categories])
     await session.commit()
 
+async def orm_add_category(session: AsyncSession, name: str, salon_id: int):
+    """Create a single category for the salon."""
+    session.add(Category(name=name, salon_id=salon_id))
+    await session.commit()
+
+async def orm_delete_category(session: AsyncSession, category_id: int, salon_id: int) -> None:
+    """Delete category by id belonging to a salon."""
+    query = delete(Category).where(Category.id == category_id, Category.salon_id == salon_id)
+    await session.execute(query)
+    await session.commit()
+
 ############ Админка: добавить/изменить/удалить товар ########################
 
 async def orm_add_product(session: AsyncSession, data: dict, salon_id: int):
