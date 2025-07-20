@@ -1,0 +1,11 @@
+version: '3.9'
+
+services:
+  bot:
+    image: atubu/new-multishope:latest
+    container_name: my_telegram_bot
+    volumes:
+      - ./my_base.db:/app/my_base.db
+    restart: always
+    environment:
+      - PYTHONUNBUFFERED=1
