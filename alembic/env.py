@@ -25,7 +25,11 @@ target_metadata = Base.metadata
 
 def get_url():
     # Путь к SQLite-файлу
-    return "sqlite+aiosqlite:///my_base.db"
+    # Получаем URL базы данных из переменных окружения
+    db_url = os.getenv("DB_URL")
+    if not db_url:
+        raise RuntimeError("DB_URL environment variable is not set")
+    return db_url
 
 
 def run_migrations_offline():

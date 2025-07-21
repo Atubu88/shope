@@ -1,11 +1,35 @@
-version: '3.9'
-
 services:
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    # Healthcheck (по желанию)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   bot:
+    build: .           # <-- Говорим docker-compose собирать образ из Dockerfile в текущей папке!
     image: atubu/new-multishope:latest
     container_name: my_telegram_bot
-    volumes:
-      - ./my_base.db:/app/my_base.db
     restart: always
     environment:
       - PYTHONUNBUFFERED=1
+      - DB_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
+    depends_on:
+      - db
+    # Если нужен volume для БД SQLite — закомментируй или удали эту строку (ты уже перешёл на PostgreSQL)
+    # volumes:
+    #   - ./my_base.db:/app/my_base.db
+
+volumes:
+  postgres_data:
