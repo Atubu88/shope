@@ -182,3 +182,16 @@ def get_admin_main_kb() -> InlineKeyboardMarkup:
         "Создать салон": "admin_create_salon",
     }
     return get_callback_btns(btns=btns, sizes=(2,))
+
+
+def get_currency_kb() -> InlineKeyboardMarkup:
+    btns = {
+        "USD": "currency_USD",
+        "EUR": "currency_EUR",
+        "RUB": "currency_RUB",
+        "UAH": "currency_UAH",
+        "KZT": "currency_KZT",
+        "KGS": "currency_KGS",
+        "AED": "currency_AED",
+    }
+    return get_callback_btns(btns=btns, sizes=(2, 2, 2, 1))
