@@ -14,7 +14,9 @@ from database.orm_query import (
     orm_get_products,
     orm_delete_product,
     orm_change_product_image,
+    orm_get_salon_by_id,
 )
+from utils.currency import get_currency_symbol
 from .menu import show_admin_menu
 
 products_router = Router()
@@ -106,11 +108,13 @@ async def show_products(callback: CallbackQuery, state: FSMContext, session: Asy
     product_msg_ids: list[int] = []
 
     if products:
+        salon = await orm_get_salon_by_id(session, salon_id)
+        currency = get_currency_symbol(salon.currency) if salon else "RUB"
         for product in products:
             caption = (
                 f"<b>{product.name}</b>\n"
                 f"{product.description}\n"
-                f"Цена: <b>{product.price:.2f}</b>"
+                f"Цена: <b>{product.price:.2f}{currency}</b>"
             )
             msg = await callback.bot.send_photo(
                 callback.message.chat.id,

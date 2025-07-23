@@ -60,14 +60,14 @@ async def orm_get_salons(session: AsyncSession):
     return result.scalars().all()
 
 
-async def orm_create_salon(session: AsyncSession, name: str, slug: str):
+async def orm_create_salon(session: AsyncSession, name: str, slug: str, currency: str = "RUB"):
     stmt = select(Salon).where((Salon.name == name) | (Salon.slug == slug))
     result = await session.execute(stmt)
     salon = result.scalar_one_or_none()
 
     if salon:
         raise ValueError("Salon with this name or slug already exists")
-    new_salon = Salon(name=name, slug=slug)
+    new_salon = Salon(name=name, slug=slug, currency=currency)
     session.add(new_salon)
     await session.commit()
     await session.refresh(new_salon)

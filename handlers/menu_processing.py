@@ -10,6 +10,7 @@ from database.orm_query import (
     orm_reduce_product_in_cart,
     orm_get_user,
     orm_get_salons,
+    orm_get_salon_by_id,
 )
 from kbds.inline import (
     get_products_btns,
@@ -18,6 +19,7 @@ from kbds.inline import (
     get_user_main_btns,
 )
 from utils.paginator import Paginator
+from utils.currency import get_currency_symbol
 from aiogram.types import InputMediaPhoto, FSInputFile
 
 
@@ -82,10 +84,12 @@ async def products(session, level, category, page, salon_id):
             )
 
         product = page_items[0]
+        salon = await orm_get_salon_by_id(session, salon_id)
+        currency = get_currency_symbol(salon.currency) if salon else "RUB"
         image = get_image_banner(
             product.image,
-            f"<strong>{product.name}</strong>\n{product.description}\nСтоимость: {round(product.price, 2)}\n"
-            f"<strong>Товар {paginator.page} из {paginator.pages}</strong>"
+            f"<strong>{product.name}</strong>\n{product.description}\nСтоимость: {round(product.price, 2)}{currency}\n",
+            f"<strong>Товар {paginator.page} из {paginator.pages}</strong>",
         )
 
         pagination_btns = pages(paginator)
@@ -128,13 +132,15 @@ async def carts(session, level, menu_name, page, user_id, product_id, salon_id):
     else:
         paginator = Paginator(carts, page=page)
         cart = paginator.get_page()[0]
+        salon = await orm_get_salon_by_id(session, salon_id)
+        currency = get_currency_symbol(salon.currency) if salon else "RUB"
         cart_price = round(cart.quantity * cart.product.price, 2)
         total_price = round(sum(c.quantity * c.product.price for c in carts), 2)
 
         image = get_image_banner(
             cart.product.image,
-            f"<strong>{cart.product.name}</strong>\n{cart.product.price}$ x {cart.quantity} = {cart_price}$\n"
-            f"Товар {paginator.page} из {paginator.pages} в корзине.\nОбщая стоимость: {total_price}$"
+            f"<strong>{cart.product.name}</strong>\n{cart.product.price}{currency} x {cart.quantity} = {cart_price}{currency}\n",
+            f"Товар {paginator.page} из {paginator.pages} в корзине.\nОбщая стоимость: {total_price}{currency}",
         )
 
         pagination_btns = pages(paginator)

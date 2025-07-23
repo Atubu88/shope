@@ -31,7 +31,7 @@ async def create_db():
 
     async with session_maker() as session:
         try:
-            salon = await orm_create_salon(session, "Default", "default")
+            salon = await orm_create_salon(session, "Default", "default", currency="RUB")
         except ValueError:
             salon = await orm_get_salon_by_slug(session, "default")
         await orm_create_categories(session, categories, salon.id)
