@@ -10,7 +10,8 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.orm_query import orm_add_product, orm_get_categories
+from database.orm_query import orm_add_product, orm_get_categories, orm_get_salon_by_id
+from utils.currency import get_currency_symbol
 from .menu import show_admin_menu
 
 add_product_router = Router()
@@ -140,8 +141,10 @@ async def process_photo(message: Message, state: FSMContext, session: AsyncSessi
     await state.update_data(image=photo_id)
     data = await state.get_data()
     salon_id = data.get("salon_id")  # <-- снова достаем актуальный salon_id
+    salon = await orm_get_salon_by_id(session, salon_id)
+    currency = get_currency_symbol(salon.currency) if salon else "RUB"
     caption = (
-        f"<b>{data['name']}</b>\n{data['description']}\nЦена: {data['price']}"
+        f"<b>{data['name']}</b>\n{data['description']}\nЦена: {data['price']}{currency}"
     )
     await orm_add_product(session, data, salon_id)  # <-- используем правильный salon_id!
     await state.clear()
@@ -177,5 +180,4 @@ async def exit_from_category(callback: CallbackQuery, state: FSMContext, session
     await state.update_data(main_message_id=message_id)
     await show_admin_menu(state, callback.message.chat.id, callback.bot, session)
     await callback.answer()
-
 

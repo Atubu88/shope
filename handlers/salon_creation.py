@@ -7,6 +7,7 @@ from aiogram.types import ReplyKeyboardRemove
 from sqlalchemy.ext.asyncio import AsyncSession
 from aiogram.filters import Command
 from database.orm_query import orm_create_salon, init_default_salon_content
+from kbds.inline import get_currency_kb
 from filters.chat_types import ChatTypeFilter, IsSuperAdmin
 from utils.slug import generate_unique_slug
 
@@ -17,6 +18,7 @@ salon_creation_router.message.filter(ChatTypeFilter(["private"]), IsSuperAdmin()
 class AddSalon(StatesGroup):
     name = State()
     slug = State()
+    currency = State()
 
 
 @salon_creation_router.message(StateFilter(None), Command("create_salon"))
@@ -46,14 +48,31 @@ async def salon_slug(message: types.Message, state: FSMContext, session: AsyncSe
     slug_raw = message.text.strip()
     slug_source = slug_raw if slug_raw and slug_raw != '-' else name
     slug = await generate_unique_slug(session, slug_source)
+    await state.update_data(slug=slug)
+    await message.answer('Выберите валюту салона:', reply_markup=get_currency_kb())
+    await state.set_state(AddSalon.currency)
+
+
+@salon_creation_router.message(AddSalon.slug)
+async def salon_slug_invalid(message: types.Message) -> None:
+    await message.answer('Введите slug текстом или "-" для авто')
+
+
+@salon_creation_router.callback_query(AddSalon.currency, F.data.startswith("currency_"))
+async def salon_currency(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession) -> None:
+    currency = callback.data.split("_")[-1]
+    data = await state.get_data()
+    name = data['name']
+    slug = data['slug']
     try:
-        salon = await orm_create_salon(session, name, slug)
+        salon = await orm_create_salon(session, name, slug, currency)
     except ValueError:
-        await message.answer('Салон с таким названием или слагом уже существует.')
+        await callback.message.answer('Салон с таким названием или слагом уже существует.')
         await state.clear()
+        await callback.answer()
         return
     await init_default_salon_content(session, salon.id)
-    bot_username = (await message.bot.get_me()).username
+    bot_username = (await callback.bot.get_me()).username
     link = f'https://t.me/{bot_username}?start={salon.slug}'
     import qrcode
     from io import BytesIO
@@ -61,11 +80,9 @@ async def salon_slug(message: types.Message, state: FSMContext, session: AsyncSe
     buf = BytesIO()
     img.save(buf, format='PNG')
     buf.seek(0)
-    await message.answer_photo(types.BufferedInputFile(buf.getvalue(), filename='qr.png'),
-                               caption=f"Салон '{salon.name}' создан!\n{link}")
+    await callback.message.answer_photo(
+        types.BufferedInputFile(buf.getvalue(), filename='qr.png'),
+        caption=f"Салон '{salon.name}' создан!\n{link}"
+    )
     await state.clear()
-
-
-@salon_creation_router.message(AddSalon.slug)
-async def salon_slug_invalid(message: types.Message) -> None:
-    await message.answer('Введите slug текстом или "-" для авто')
+    await callback.answer()

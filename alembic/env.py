@@ -6,6 +6,9 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
+
 # 🔧 Добавляем путь к проекту
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
