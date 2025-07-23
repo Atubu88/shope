@@ -28,20 +28,31 @@ from aiogram.types import InputMediaPhoto
 from aiogram.types import InputMediaPhoto, FSInputFile
 import os
 
-def get_image_banner(image: str | None, description: str) -> InputMediaPhoto:
+
+def get_image_banner(
+    image: str | None,
+    description: str,
+    extra_description: str | None = None,
+) -> InputMediaPhoto:
+    """Return an ``InputMediaPhoto`` prepared from different image sources.
+
+    ``image`` can be a Telegram ``file_id`` or a local path. If the path does
+    not exist, a default banner image is used. ``extra_description`` is
+    optional and appended below ``description`` when provided.
     """
-    Возвращает объект InputMediaPhoto на основе:
-    - Telegram file_id (начинается с "AgACAg")
-    - локального пути к файлу (если он существует)
-    - дефолтной картинки, если ничего не найдено
-    """
+
+    caption = description.rstrip()
+    if extra_description:
+        caption = f"{caption}\n{extra_description}"
+
     if image and image.startswith("AgACAg"):
-        return InputMediaPhoto(media=image, caption=description)
+        return InputMediaPhoto(media=image, caption=caption)
     elif image and os.path.exists(image):
-        return InputMediaPhoto(media=FSInputFile(image), caption=description)
+        return InputMediaPhoto(media=FSInputFile(image), caption=caption)
     else:
-        return InputMediaPhoto(media=FSInputFile("banners/default.jpg"),
-                               caption=description)  # <--- ВОТ ЗДЕСЬ!
+        return InputMediaPhoto(
+            media=FSInputFile("banners/default.jpg"), caption=caption
+        )
 
 
 

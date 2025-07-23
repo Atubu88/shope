@@ -9,7 +9,7 @@ from dotenv import find_dotenv, load_dotenv
 load_dotenv(find_dotenv())
 
 from middlewares.db import DataBaseSession
-from database.engine import create_db, drop_db, session_maker
+from database.engine import  drop_db, session_maker
 
 from handlers.user_private import user_private_router
 from handlers.admin_private import admin_router
@@ -47,8 +47,7 @@ dp.include_router(salon_creation_router)
 dp.include_router(order_router)
 
 async def on_startup(bot):
-    # await drop_db()
-    await create_db()
+    pass
 
 async def on_shutdown(bot):
     print('бот лег')
