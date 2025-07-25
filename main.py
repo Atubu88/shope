@@ -22,6 +22,7 @@ from handlersadmin.settings import settings_router
 from handlers.order_processing import order_router
 from handlers.salon_creation import salon_creation_router
 from handlersadmin.menu import admin_menu_router
+from handlers.inline_mode import inline_router
 
 # ALLOWED_UPDATES = ['message', 'edited_message', 'callback_query']
 
@@ -45,6 +46,7 @@ dp.include_router(settings_router)
 #dp.include_router(admin_router)
 dp.include_router(salon_creation_router)
 dp.include_router(order_router)
+dp.include_router(inline_router)
 
 async def on_startup(bot):
     pass

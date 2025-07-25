@@ -25,15 +25,27 @@ def get_user_main_btns(*, level: int, sizes: tuple[int] = (2,)):
         "Доставка ⛵": "shipping",
     }
     for text, menu_name in btns.items():
-        if menu_name == 'catalog':
-            keyboard.add(InlineKeyboardButton(text=text,
-                                              callback_data=MenuCallBack(level=level + 1, menu_name=menu_name).pack()))
-        elif menu_name == 'cart':
-            keyboard.add(InlineKeyboardButton(text=text,
-                                              callback_data=MenuCallBack(level=3, menu_name=menu_name).pack()))
+        if menu_name == "catalog":
+            keyboard.add(
+                InlineKeyboardButton(
+                    text=text,
+                    switch_inline_query_current_chat="products",
+                )
+            )
+        elif menu_name == "cart":
+            keyboard.add(
+                InlineKeyboardButton(
+                    text=text,
+                    callback_data=MenuCallBack(level=3, menu_name=menu_name).pack(),
+                )
+            )
         else:
-            keyboard.add(InlineKeyboardButton(text=text,
-                                              callback_data=MenuCallBack(level=level, menu_name=menu_name).pack()))
+            keyboard.add(
+                InlineKeyboardButton(
+                    text=text,
+                    callback_data=MenuCallBack(level=level, menu_name=menu_name).pack(),
+                )
+            )
 
     return keyboard.adjust(*sizes).as_markup()
 
@@ -59,9 +71,12 @@ def get_user_catalog_btns(*, level: int, categories: list, sizes: tuple[int] = (
                                       callback_data=MenuCallBack(level=3, menu_name='cart').pack()))
 
     for c in categories:
-        keyboard.add(InlineKeyboardButton(text=c.name,
-                                          callback_data=MenuCallBack(level=level + 1, menu_name=c.name,
-                                                                     category=c.id).pack()))
+        keyboard.add(
+            InlineKeyboardButton(
+                text=c.name,
+                switch_inline_query_current_chat=f"cat_{c.id}",
+            )
+        )
 
     return keyboard.adjust(*sizes).as_markup()
 
