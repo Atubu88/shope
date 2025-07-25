@@ -1,8 +1,8 @@
-"""Initial tables
+"""initial
 
-Revision ID: 9327819cd17c
+Revision ID: 0345942b30c1
 Revises: 
-Create Date: 2025-07-09 23:50:28.479027
+Create Date: 2025-07-24 11:22:03.990864
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '9327819cd17c'
+revision: str = '0345942b30c1'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -24,10 +24,16 @@ def upgrade() -> None:
     op.create_table('salon',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('slug', sa.String(length=50), nullable=False),
+    sa.Column('currency', sa.String(length=3), nullable=False),
+    sa.Column('latitude', sa.Numeric(precision=9, scale=6), nullable=True),
+    sa.Column('longitude', sa.Numeric(precision=9, scale=6), nullable=True),
+    sa.Column('group_chat_id', sa.BigInteger(), nullable=True),
     sa.Column('created', sa.DateTime(), nullable=False),
     sa.Column('updated', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name')
+    sa.UniqueConstraint('name'),
+    sa.UniqueConstraint('slug')
     )
     op.create_table('banner',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -39,7 +45,7 @@ def upgrade() -> None:
     sa.Column('updated', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['salon_id'], ['salon.id'], ),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name')
+    sa.UniqueConstraint('name', 'salon_id', name='unique_banner_name_per_salon')
     )
     op.create_table('category',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -57,6 +63,8 @@ def upgrade() -> None:
     sa.Column('last_name', sa.String(length=150), nullable=True),
     sa.Column('phone', sa.String(length=13), nullable=True),
     sa.Column('salon_id', sa.Integer(), nullable=True),
+    sa.Column('is_super_admin', sa.Boolean(), nullable=False),
+    sa.Column('is_salon_admin', sa.Boolean(), nullable=False),
     sa.Column('created', sa.DateTime(), nullable=False),
     sa.Column('updated', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['salon_id'], ['salon.id'], ),

@@ -8,7 +8,7 @@ from sqlalchemy import (
     func, Boolean,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-
+from sqlalchemy import UniqueConstraint
 
 class Base(DeclarativeBase):
     created: Mapped[DateTime] = mapped_column(DateTime, default=func.now())
@@ -38,6 +38,9 @@ class Banner(Base):
 
     salon: Mapped['Salon'] = relationship(backref='banners')
 
+    __table_args__ = (
+        UniqueConstraint('name', 'salon_id', name='unique_banner_name_per_salon'),
+    )
 
 class Category(Base):
     __tablename__ = 'category'

@@ -1,7 +1,7 @@
 from aiogram import F, types, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import Salon
@@ -24,65 +24,76 @@ user_private_router.message.filter(ChatTypeFilter(["private"]))
 
 
 @user_private_router.message(CommandStart())
-async def start_cmd(message: types.Message,
-                    state: FSMContext,          # ➊ добавляем
-                    session: AsyncSession):
-    # ➋ сбрасываем контекст до любых операций
+async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSession):
     await state.clear()
+
     args = message.text.split()
     param = args[1] if len(args) > 1 else None
     salon_id = None
-    salon_name = None  # Сохраняем имя салона для отображения
+    salon_name = None
 
+    # 1. Получаем салон из параметра, если есть
     if param:
         if "-" in param:
             slug, _ = param.rsplit("-", 1)
             salon = await orm_get_salon_by_slug(session, slug)
-            if salon:
-                salon_id = salon.id
-                salon_name = salon.name
         elif param.isdigit():
-            salon_id = int(param)
-            # Получить имя салона по id
+            salon = await session.get(Salon, int(param))
+        else:
+            salon = await orm_get_salon_by_slug(session, param)
+
+        if salon:
+            salon_id = salon.id
+            salon_name = salon.name
+
+    # 2. Проверяем пользователя
+    user = await orm_get_user(session, message.from_user.id)
+    if not user:
+        user = await orm_add_user(
+            session,
+            user_id=message.from_user.id,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name,
+        )
+
+    # 3. Если салонов нет
+    salons = await orm_get_salons(session)
+    if not salons:
+        if user.id == 1:
+            await orm_add_user(session, user_id=user.user_id, is_super_admin=True)
+            await message.answer(
+                "✅ Вы стали суперадмином.\nСоздайте первый салон командой /create_salon"
+            )
+        else:
+            await message.answer("Салонов пока нет. Обратитесь к администратору.")
+        return
+
+    # 4. Если салон не выбран и не закреплён
+    if salon_id is None:
+        if user.salon_id:
+            salon_id = user.salon_id
             salon = await session.get(Salon, salon_id)
             if salon:
                 salon_name = salon.name
         else:
-            salon = await orm_get_salon_by_slug(session, param)
-            if salon:
-                salon_id = salon.id
-                salon_name = salon.name
+            await message.answer("Выберите салон:", reply_markup=get_salon_btns(salons))
+            return
 
-    user = await orm_get_user(session, message.from_user.id)
-    if salon_id is None and user:
-        salon_id = user.salon_id
-        # Получить имя салона по id
-        if salon_id:
-            salon = await session.get(Salon, salon_id)
-            if salon:
-                salon_name = salon.name
-
-    if salon_id is None:
-        salons = await orm_get_salons(session)
-        await message.answer("Выберите салон", reply_markup=get_salon_btns(salons))
-        return
-
+    # 5. Обновляем пользователя (привязываем к салону)
     await orm_add_user(
         session,
-        user_id=message.from_user.id,
+        user_id=user.user_id,
+        salon_id=salon_id,
         first_name=message.from_user.first_name,
         last_name=message.from_user.last_name,
-        phone=None,
-        salon_id=salon_id,
     )
 
-    # Показываем пользователю, в каком он салоне
+    # 6. Сообщаем выбранный салон
     if salon_name:
         await message.answer(f"Вы находитесь в салоне: <b>{salon_name}</b>", parse_mode="HTML")
 
-    media, reply_markup = await get_menu_content(session, level=0, menu_name="main", user_id=message.from_user.id)
+    media, reply_markup = await get_menu_content(session, level=0, menu_name="main", user_id=user.user_id)
     await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
-
 
 
 async def add_to_cart(callback: types.CallbackQuery, callback_data: MenuCallBack, session: AsyncSession):
