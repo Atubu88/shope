@@ -8,13 +8,13 @@ from aiogram.types import (
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from utils.supabase_storage import upload_photo_from_telegram, get_path_from_url, delete_photo_from_supabase
 from database.orm_query import (
     orm_get_categories,
     orm_get_products,
     orm_delete_product,
     orm_change_product_image,
-    orm_get_salon_by_id,
+    orm_get_salon_by_id, orm_get_product,
 )
 from utils.currency import get_currency_symbol
 from .menu import show_admin_menu
@@ -153,6 +153,16 @@ async def delete_product(callback: CallbackQuery, state: FSMContext, session: As
         return
 
     product_id = int(callback.data.split("_")[-1])
+
+    # Получаем продукт (для url картинки)
+    product = await orm_get_product(session, product_id, salon_id)
+    if product and product.image:
+        filename = get_path_from_url(product.image)
+        try:
+            await delete_photo_from_supabase(filename)
+        except Exception as e:
+            print(f"Ошибка при удалении фото из Supabase: {e}")
+
     await orm_delete_product(session, product_id, salon_id)
     await callback.answer("Товар удалён ✅", show_alert=True)
     try:
@@ -172,10 +182,11 @@ async def edit_product(callback: CallbackQuery, state: FSMContext):
 @products_router.message(EditPhotoFSM.waiting_for_photo, F.photo)
 async def save_new_photo(message: Message, state: FSMContext, session: AsyncSession):
     data = await state.get_data()
+    photo_url = await upload_photo_from_telegram(message.bot, message.photo[-1].file_id)
     await orm_change_product_image(
         session,
         data["edit_product_id"],
-        message.photo[-1].file_id,
+        photo_url,
         data["salon_id"],
     )
 

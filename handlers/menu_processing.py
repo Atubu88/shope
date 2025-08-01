@@ -47,6 +47,8 @@ def get_image_banner(
 
     if image and image.startswith("AgACAg"):
         return InputMediaPhoto(media=image, caption=caption)
+    elif image and (image.startswith("http://") or image.startswith("https://")):
+        return InputMediaPhoto(media=image, caption=caption)
     elif image and os.path.exists(image):
         return InputMediaPhoto(media=FSInputFile(image), caption=caption)
     else:

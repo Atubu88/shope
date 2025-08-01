@@ -256,6 +256,7 @@ async def init_default_salon_content(session: AsyncSession, salon_id: int):
     await orm_add_banner_description(session, description_for_info_pages, salon_id)
 
 
+
 ##################### Добавляем юзера в БД #####################################
 
 async def orm_add_user(

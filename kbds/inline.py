@@ -59,10 +59,15 @@ def get_user_catalog_btns(*, level: int, categories: list, sizes: tuple[int] = (
                                       callback_data=MenuCallBack(level=3, menu_name='cart').pack()))
 
     for c in categories:
-        keyboard.add(InlineKeyboardButton(text=c.name,
-                                          callback_data=MenuCallBack(level=level + 1, menu_name=c.name,
-                                                                     category=c.id).pack()))
-
+        #keyboard.add(InlineKeyboardButton(text=c.name,
+                                          #callback_data=MenuCallBack(level=level + 1, menu_name=c.name,
+                                                                     #category=c.id).pack()))
+        keyboard.add(
+            InlineKeyboardButton(
+                text=c.name,
+                switch_inline_query_current_chat=f"cat_{c.id}"
+            )
+        )
     return keyboard.adjust(*sizes).as_markup()
 
 

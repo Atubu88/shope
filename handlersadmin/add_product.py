@@ -9,7 +9,7 @@ from aiogram.types import (
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from utils.supabase_storage import upload_photo_from_telegram
 from database.orm_query import orm_add_product, orm_get_categories, orm_get_salon_by_id
 from utils.currency import get_currency_symbol
 from .menu import show_admin_menu
@@ -138,7 +138,8 @@ async def invalid_price(message: Message) -> None:
 @add_product_router.message(AddProductFSM.photo, F.photo)
 async def process_photo(message: Message, state: FSMContext, session: AsyncSession) -> None:
     photo_id = message.photo[-1].file_id
-    await state.update_data(image=photo_id)
+    photo_url = await upload_photo_from_telegram(message.bot, photo_id)
+    await state.update_data(image=photo_url)
     data = await state.get_data()
     salon_id = data.get("salon_id")  # <-- снова достаем актуальный salon_id
     salon = await orm_get_salon_by_id(session, salon_id)

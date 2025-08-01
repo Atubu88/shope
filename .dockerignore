@@ -1,0 +1,24 @@
+# Исключаем виртуальное окружение
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Исключаем папку для веб-приложения (FastAPI)
+web_app/
+
+# Исключаем IDE и прочие конфиги
+.idea/
+.vscode/
+*.log
+
+# Исключаем тесты (если есть)
+tests/
+
+# Исключаем локальные медиа
+banners/
+uploads/
+
+# Docker и Compose
+docker-compose.override.yml
+.dockerignore

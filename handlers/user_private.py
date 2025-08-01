@@ -1,6 +1,7 @@
 from aiogram import F, types, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
+from aiogram.types import Message
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,11 +11,11 @@ from database.orm_query import (
     orm_add_user,
     orm_get_salons,
     orm_get_user,
-    orm_get_salon_by_slug,
+    orm_get_salon_by_slug, orm_get_product, orm_get_products,
 )
 
 from filters.chat_types import ChatTypeFilter
-from handlers.menu_processing import get_menu_content
+from handlers.menu_processing import get_menu_content, products
 from kbds.inline import MenuCallBack, get_callback_btns, SalonCallBack, get_salon_btns
 
 
@@ -151,3 +152,55 @@ async def user_menu(callback: types.CallbackQuery, callback_data: MenuCallBack, 
 
     await callback.message.edit_media(media=media, reply_markup=reply_markup)
     await callback.answer()
+
+
+@user_private_router.message(F.text.startswith("/product_"))
+async def show_product(message: Message, session: AsyncSession):
+    try:
+        product_id = int(message.text.split("_")[1])
+        user = await orm_get_user(session, message.from_user.id)
+        salon_id = user.salon_id if user else None
+
+        if not salon_id:
+            await message.answer("Салон не выбран. Перезапустите /start.")
+            return
+
+        # Получаем сам товар
+        product = await orm_get_product(session, product_id, salon_id=salon_id)
+        if not product:
+            await message.answer("Товар не найден!")
+            return
+
+        # Получаем все товары в категории для этого салона
+        products_in_cat = await orm_get_products(session, category_id=product.category_id, salon_id=salon_id)
+        # Находим индекс выбранного товара
+        product_ids = [p.id for p in products_in_cat]
+        if product_id not in product_ids:
+            await message.answer("Товар не найден в этой категории!")
+            return
+
+        idx = product_ids.index(product_id)
+        # Определяем номер страницы, где находится этот товар (если у тебя на странице 1 товар)
+        page = idx + 1  # если один товар на страницу (иначе дели на размер страницы и округляй вверх)
+
+        # Показываем страницу с нужным товаром и актуальной пагинацией
+        image, kbds = await products(
+            session,
+            level=2,
+            category=product.category_id,
+            page=page,
+            salon_id=salon_id,
+        )
+
+        await message.answer_photo(
+            image.media,
+            caption=image.caption,
+            reply_markup=kbds,
+            parse_mode="HTML"
+        )
+
+    except Exception as e:
+        print(f"[show_product] Ошибка: {e}")
+        await message.answer("Ошибка при загрузке товара.")
+
+

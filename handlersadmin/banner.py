@@ -67,19 +67,24 @@ async def invalid_page(message: Message) -> None:
     await message.answer("Выберите страницу кнопкой ниже.")
 
 
+from utils.supabase_storage import upload_photo_from_telegram
+
 @banner_router.message(BannerFSM.photo, F.photo)
 async def process_photo(message: Message, state: FSMContext, session: AsyncSession) -> None:
     photo_id = message.photo[-1].file_id
+    # 1. Скачай и загрузи фото в Supabase, получи public_url
+    photo_url = await upload_photo_from_telegram(message.bot, photo_id)
+    # 2. Сохрани ссылку в БД
     data = await state.get_data()
     salon_id = data.get("salon_id")
     page = data.get("page")
-    await orm_change_banner_image(session, page, photo_id, salon_id)
+    await orm_change_banner_image(session, page, photo_url, salon_id)
     await state.clear()
     await state.update_data(main_message_id=data["main_message_id"])
     await message.bot.edit_message_media(
         chat_id=message.chat.id,
         message_id=data["main_message_id"],
-        media=InputMediaPhoto(media=photo_id, caption="Баннер обновлён."),
+        media=InputMediaPhoto(media=photo_url, caption="Баннер обновлён."),
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="В меню", callback_data="admin_menu")]]
         ),

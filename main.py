@@ -45,7 +45,7 @@ dp.include_router(settings_router)
 #dp.include_router(admin_router)
 dp.include_router(salon_creation_router)
 dp.include_router(order_router)
-#dp.include_router(inline_router)
+dp.include_router(inline_router)
 
 async def on_startup(bot):
     pass
