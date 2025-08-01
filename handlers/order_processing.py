@@ -11,7 +11,13 @@ from utils.notifications import notify_salon_about_order
 from utils.orders import get_order_summary
 from handlers.menu_processing import get_menu_content
 from utils.geo import haversine, calc_delivery_cost, get_address_from_coords
-from database.orm_query import orm_get_user_carts, orm_get_user, orm_get_salon_by_id, orm_clear_cart
+from database.orm_query import (
+    orm_get_user_carts,
+    orm_get_user,
+    orm_get_salon_by_id,
+    orm_clear_cart,
+    orm_create_order,
+)
 
 order_router = Router()
 
@@ -449,21 +455,41 @@ async def confirm_order(callback: CallbackQuery,
                         state: FSMContext,
                         session: AsyncSession):
 
-    # 1. сообщаем салону (теперь без дублирования клиенту)
+    data = await state.get_data()
+
+    user_id = callback.from_user.id
+    user = await orm_get_user(session, user_id)
+    salon_id = user.salon_id if user else None
+
+    cart_items = await orm_get_user_carts(session, user_id, salon_id) if salon_id else []
+
+    # 1. сохраняем заказ
+    if salon_id and cart_items:
+        order = await orm_create_order(
+            session,
+            user_id=user_id,
+            salon_id=salon_id,
+            address=data.get("address"),
+            phone=data.get("phone"),
+            payment_method=data.get("payment_method"),
+            cart_items=cart_items,
+        )
+    else:
+        order = None
+
+    # 2. сообщаем салону (теперь без дублирования клиенту)
     await notify_salon_about_order(callback, state, session)
 
-    # 2. убираем inline‑кнопки у старой карточки
+    # 3. убираем inline‑кнопки у старой карточки
     try:
         await callback.message.edit_reply_markup(reply_markup=None)
     except Exception:
         pass
 
-    user_id = callback.from_user.id
-    user = await orm_get_user(session, user_id)
-    salon_id = user.salon_id if user else None
     if salon_id:
         await orm_clear_cart(session, user_id, salon_id)
-    # 3. благодарим клиента
+
+    # 4. благодарим клиента
     await callback.message.answer("Спасибо! Ваш заказ принят 👍")
     await callback.answer()
     await state.clear()
