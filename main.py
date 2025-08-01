@@ -19,6 +19,7 @@ from handlersadmin.categories import categories_router
 from handlersadmin.banner import banner_router
 from handlersadmin.banner_description import banner_text_router
 from handlersadmin.settings import settings_router
+from handlersadmin.orders import orders_router
 from handlers.order_processing import order_router
 from handlers.salon_creation import salon_creation_router
 from handlersadmin.menu import admin_menu_router
@@ -42,6 +43,7 @@ dp.include_router(banner_text_router)
 dp.include_router(products_router)
 dp.include_router(categories_router)
 dp.include_router(settings_router)
+dp.include_router(orders_router)
 #dp.include_router(admin_router)
 dp.include_router(salon_creation_router)
 dp.include_router(order_router)

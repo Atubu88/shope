@@ -383,3 +383,64 @@ async def orm_clear_cart(session: AsyncSession, user_id: int, salon_id: int) -> 
     )
     await session.execute(query)
     await session.commit()
+
+
+async def orm_create_order(
+    session: AsyncSession,
+    user_id: int,
+    salon_id: int,
+    address: str | None,
+    phone: str | None,
+    payment_method: str | None,
+    cart_items: list,
+    status: str = "NEW",
+) -> "Order":
+    from database.models import Order, OrderItem
+
+    total = sum(item.product.price * item.quantity for item in cart_items)
+
+    order = Order(
+        salon_id=salon_id,
+        user_id=user_id,
+        address=address,
+        phone=phone,
+        payment_method=payment_method,
+        status=status,
+        total=total,
+    )
+    session.add(order)
+    await session.flush()
+
+    session.add_all(
+        [
+            OrderItem(
+                order_id=order.id,
+                product_id=item.product_id,
+                quantity=item.quantity,
+                price=item.product.price,
+            )
+            for item in cart_items
+        ]
+    )
+    await session.commit()
+    await session.refresh(order)
+    return order
+
+
+async def orm_get_orders(session: AsyncSession, salon_id: int):
+    from database.models import Order
+    result = await session.execute(
+        select(Order).where(Order.salon_id == salon_id).order_by(Order.created.desc())
+    )
+    return result.scalars().all()
+
+
+async def orm_get_order(session: AsyncSession, order_id: int):
+    from database.models import Order, OrderItem, Product
+    result = await session.execute(
+        select(Order)
+        .where(Order.id == order_id)
+        .options(joinedload(Order.items).joinedload(OrderItem.product))
+        .options(joinedload(Order.user))
+    )
+    return result.scalar_one_or_none()
