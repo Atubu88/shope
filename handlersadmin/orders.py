@@ -36,7 +36,9 @@ def orders_kb(orders):
     buttons = []
     for o in orders:
         time = o.created.strftime("%H:%M")
-        currency = get_currency_symbol(getattr(o.salon, "currency", "RUB"))
+        salon = getattr(o, "user_salon", None)
+        currency_code = getattr(getattr(salon, "salon", None), "currency", "RUB")
+        currency = get_currency_symbol(currency_code)
         buttons.append([
             InlineKeyboardButton(
                 text=f"#{o.id} • {time} • {o.status} • {int(o.total)}{currency}",
@@ -84,14 +86,15 @@ async def show_order_detail(callback: CallbackQuery, state: FSMContext, session:
 
     # ... формирование текста заказа ...
     # пример:
+    currency_code = getattr(getattr(order.user_salon, "salon", None), "currency", "RUB")
     text = (
         f"Заказ #{order.id}\n"
         f"{order.created:%d.%m %H:%M}\n"
-        f"{order.user.first_name or ''} / {order.phone or '-'}\n"
+        f"{getattr(order.user_salon, 'first_name', '')} / {order.phone or '-'}\n"
         f"🍕 {order.items[0].product.name} × {order.items[0].quantity}\n"
         f"{order.address or ''}\n"
         f"Статус: {order.status}\n"
-        f"Итого: {order.total:.0f}{get_currency_symbol(order.salon.currency)}"
+        f"Итого: {order.total:.0f}{get_currency_symbol(currency_code)}"
     )
 
     message_id = (await state.get_data()).get("main_message_id") or callback.message.message_id
