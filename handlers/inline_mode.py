@@ -8,7 +8,7 @@ from aiogram.types import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.orm_query import (
-    orm_get_user,
+    orm_get_user_salons,
     orm_get_products,
     orm_get_categories,
     orm_get_salon_by_id,
@@ -33,19 +33,32 @@ async def get_thumb(bot, file_id: str) -> str:
 @inline_router.inline_query()
 async def answer_products_inline(inline_query: InlineQuery, session: AsyncSession):
     """Отдаёт товары в инлайн‑режиме с фото из Supabase или Telegram."""
-    user = await orm_get_user(session, inline_query.from_user.id)
-    if not (user and user.salon_id):
-        await inline_query.answer([], cache_time=1, is_personal=True)
-        return
-    salon_id = user.salon_id
+    user_salons = await orm_get_user_salons(session, inline_query.from_user.id)
 
     query = inline_query.query.strip()
-    category_id = None
-    if query.startswith("cat_"):
-        try:
-            category_id = int(query.split("_", 1)[1])
-        except (ValueError, IndexError):
-            pass
+    salon_id: int | None = None
+    category_id: int | None = None
+    for part in query.split():
+        if part.startswith("salon_"):
+            try:
+                salon_id = int(part.split("_", 1)[1])
+            except (ValueError, IndexError):
+                pass
+        elif part.startswith("cat_"):
+            try:
+                category_id = int(part.split("_", 1)[1])
+            except (ValueError, IndexError):
+                pass
+
+    if salon_id is None:
+        if len(user_salons) == 1:
+            salon_id = user_salons[0].salon_id
+        else:
+            await inline_query.answer([], cache_time=1, is_personal=True)
+            return
+    elif not any(us.salon_id == salon_id for us in user_salons):
+        await inline_query.answer([], cache_time=1, is_personal=True)
+        return
 
     # Получаем товары
     if category_id is not None:
