@@ -3,7 +3,7 @@ from aiogram.types import (
 )
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
-from database.orm_query import orm_get_user, orm_get_salon_by_id
+from database.orm_query import orm_get_user, orm_get_user_salon
 from utils.orders import get_order_summary
 
 
@@ -33,14 +33,15 @@ async def notify_salon_about_order(
         print(f"[notify] salon_id не найден для user_id={user_id}")
         return
 
-    salon = await orm_get_salon_by_id(session, user.salon_id)
+    user_salon = await orm_get_user_salon(session, user_id, user.salon_id)
+    salon = user_salon.salon if user_salon else None
     if not salon or not salon.group_chat_id:
         print(f"[notify] group_chat_id не найден для salon_id={user.salon_id}")
         return
 
     # ---------- чек для группы салона ----------
     group_summary = await get_order_summary(
-        session, user_id, user.salon_id, data, for_group=True
+        session, user_salon.id, data, for_group=True
     )
     await callback.bot.send_message(
         salon.group_chat_id,

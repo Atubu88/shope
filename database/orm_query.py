@@ -3,7 +3,7 @@ from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from common.texts_for_db import categories, description_for_info_pages
-from database.models import Banner, Cart, Category, Product, User, Salon
+from database.models import Banner, Cart, Category, Product, User, Salon, UserSalon
 
 # Простой пагинатор
 class Paginator:
@@ -310,6 +310,16 @@ async def orm_get_user(session: AsyncSession, user_id: int, salon_id: int | None
     return result.scalar()
 
 
+async def orm_get_user_salon(session: AsyncSession, user_id: int, salon_id: int) -> UserSalon | None:
+    stmt = (
+        select(UserSalon)
+        .where(UserSalon.user_id == user_id, UserSalon.salon_id == salon_id)
+        .options(joinedload(UserSalon.salon))
+    )
+    result = await session.execute(stmt)
+    return result.scalar()
+
+
 ######################## Работа с корзинами #######################################
 
 async def orm_add_to_cart(session: AsyncSession, user_id: int, product_id: int, salon_id: int):
@@ -335,11 +345,36 @@ async def orm_add_to_cart(session: AsyncSession, user_id: int, product_id: int, 
 
 
 
-async def orm_get_user_carts(session: AsyncSession, user_id: int, salon_id: int):
-    query = select(Cart).join(Product).where(
-        Cart.user_id == user_id,
-        Product.salon_id == salon_id
-    ).options(joinedload(Cart.product))
+async def orm_get_user_carts(
+    session: AsyncSession,
+    user_salon_id: int | None = None,
+    user_id: int | None = None,
+    salon_id: int | None = None,
+):
+    if user_salon_id is not None:
+        query = (
+            select(Cart)
+            .join(Product)
+            .join(
+                UserSalon,
+                (UserSalon.user_id == Cart.user_id)
+                & (UserSalon.salon_id == Product.salon_id),
+            )
+            .where(UserSalon.id == user_salon_id)
+            .options(joinedload(Cart.product))
+        )
+    else:
+        if user_id is None or salon_id is None:
+            raise ValueError("Provide user_salon_id or both user_id and salon_id")
+        query = (
+            select(Cart)
+            .join(Product)
+            .where(
+                Cart.user_id == user_id,
+                Product.salon_id == salon_id,
+            )
+            .options(joinedload(Cart.product))
+        )
     result = await session.execute(query)
     return result.scalars().all()
 

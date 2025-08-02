@@ -5,13 +5,22 @@ from aiogram.types import (
 )
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from utils.notifications import notify_salon_about_order
 from utils.orders import get_order_summary
 from handlers.menu_processing import get_menu_content
 from utils.geo import haversine, calc_delivery_cost, get_address_from_coords
-from database.orm_query import orm_get_user_carts, orm_get_user, orm_get_salon_by_id, orm_clear_cart, orm_create_order
+from database.orm_query import (
+    orm_get_user_carts,
+    orm_get_user,
+    orm_get_user_salon,
+    orm_clear_cart,
+    orm_create_order,
+)
+from database.models import UserSalon
 
 order_router = Router()
 
@@ -73,9 +82,11 @@ async def start_order(callback: CallbackQuery, state: FSMContext, session: Async
     user_id = callback.from_user.id
     user = await orm_get_user(session, user_id)
     salon_id = user.salon_id if user else None
+    user_salon = await orm_get_user_salon(session, user_id, salon_id) if salon_id else None
+    user_salon_id = user_salon.id if user_salon else None
 
     state_data = {"delivery": None, "address": None, "delivery_cost": 0, "distance_km": None}
-    summary = await get_order_summary(session, user_id, salon_id, state_data)
+    summary = await get_order_summary(session, user_salon_id or 0, state_data)
     msg = await callback.message.answer(
         summary + "\n\nВыберите способ доставки:",
         reply_markup=get_delivery_kb(),
@@ -84,7 +95,11 @@ async def start_order(callback: CallbackQuery, state: FSMContext, session: Async
     await state.set_state(OrderStates.choosing_delivery)
     await state.update_data(
         last_msg_id=msg.message_id,
-        delivery=None, address=None, delivery_cost=0, distance_km=None
+        delivery=None,
+        address=None,
+        delivery_cost=0,
+        distance_km=None,
+        user_salon_id=user_salon_id,
     )
 
 # --- Доставка: Курьер ---
@@ -132,9 +147,12 @@ async def receive_location(message: types.Message, state: FSMContext, session: A
 
     # --- расчёт доставки ------------------------------------------------
     user_id = message.from_user.id
-    user     = await orm_get_user(session, user_id)
-    salon_id = user.salon_id if user else None
-    salon    = await orm_get_salon_by_id(session, salon_id)
+    user_salon_id = data.get("user_salon_id")
+    result = await session.execute(
+        select(UserSalon).options(joinedload(UserSalon.salon)).where(UserSalon.id == user_salon_id)
+    )
+    user_salon = result.scalar()
+    salon = user_salon.salon if user_salon else None
 
     if not salon.latitude or not salon.longitude:
         await message.answer("Ошибка: координаты салона не заданы.")
@@ -155,7 +173,8 @@ async def receive_location(message: types.Message, state: FSMContext, session: A
         delivery_cost=delivery_cost,
         distance_km=distance_km,
         geo_lat=user_lat,
-        geo_lon=user_lon
+        geo_lon=user_lon,
+        user_salon_id=user_salon_id,
     )
 
     # --- чистим старые сообщения ----------------------------------------
@@ -207,10 +226,8 @@ async def back_to_delivery_msg(message: types.Message,
     await state.update_data(apt_msg_id=None)
 
     # показываем выбор доставки заново
-    user_id  = message.from_user.id
-    user     = await orm_get_user(session, user_id)
-    salon_id = user.salon_id if user else None
-    summary  = await get_order_summary(session, user_id, salon_id, data)
+    user_salon_id = data.get("user_salon_id")
+    summary = await get_order_summary(session, user_salon_id or 0, data)
 
     new_msg = await message.answer(
         summary + "\n\nВыберите способ доставки:",
@@ -380,15 +397,13 @@ async def phone_back(message: types.Message,
         delivery_cost=0,
         distance_km=None,
         phone_back=None,
-        phone_msg_id=None
+        phone_msg_id=None,
     )
 
     # 6. Формируем новую карточку без выбранной доставки
-    user_id  = message.from_user.id
-    user     = await orm_get_user(session, user_id)
-    salon_id = user.salon_id if user else None
-    summary  = await get_order_summary(session, user_id, salon_id,
-                                       await state.get_data())
+    current_data = await state.get_data()
+    user_salon_id = current_data.get("user_salon_id")
+    summary = await get_order_summary(session, user_salon_id or 0, current_data)
 
     new_msg = await message.answer(
         summary + "\n\nВыберите способ доставки:",
@@ -415,9 +430,7 @@ async def enter_phone(message: types.Message, state: FSMContext, session: AsyncS
     await state.update_data(phone=phone)
     await state.set_state(OrderStates.confirming_order)
 
-    user_id  = message.from_user.id
-    user     = await orm_get_user(session, user_id)
-    salon_id = user.salon_id if user else None
+    user_salon_id = data.get("user_salon_id")
 
     # удаляем предыдущий итог, если был
     if last_msg_id:
@@ -433,7 +446,7 @@ async def enter_phone(message: types.Message, state: FSMContext, session: AsyncS
     )
 
     # ❷ потом формируем обзор заказа + inline‑кнопки
-    summary = await get_order_summary(session, user_id, salon_id, {**data, "phone": phone})
+    summary = await get_order_summary(session, user_salon_id or 0, {**data, "phone": phone})
 
     msg = await message.answer(
         summary + "\n\nПроверьте все данные и подтвердите заказ!",
@@ -524,11 +537,12 @@ def get_map_link(lat, lon):
 async def choose_delivery_pickup(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     data = await state.get_data()
     last_msg_id = data["last_msg_id"]
-
-    user_id = callback.from_user.id
-    user = await orm_get_user(session, user_id)
-    salon_id = user.salon_id if user else None
-    salon = await orm_get_salon_by_id(session, salon_id)
+    user_salon_id = data.get("user_salon_id")
+    result = await session.execute(
+        select(UserSalon).options(joinedload(UserSalon.salon)).where(UserSalon.id == user_salon_id)
+    )
+    user_salon = result.scalar()
+    salon = user_salon.salon if user_salon else None
 
     # --- Генерируем ссылку на карту, если есть координаты ---
     if salon.latitude and salon.longitude:
@@ -543,12 +557,12 @@ async def choose_delivery_pickup(callback: CallbackQuery, state: FSMContext, ses
         distance_km=None
     )
 
-    summary = await get_order_summary(session, user_id, salon_id, {
+    summary = await get_order_summary(session, user_salon_id or 0, {
         **data,
         "delivery": "delivery_pickup",
         "delivery_cost": 0,
         "address": address,
-        "distance_km": None
+        "distance_km": None,
     })
 
     # Показываем только сумму заказа, без кнопок подтверждения!
