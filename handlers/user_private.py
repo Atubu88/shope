@@ -98,7 +98,7 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
         return
 
     await message.answer(
-        "Выберите салон или добавьте новый:",
+        "Выберите салон",
         reply_markup=get_salon_btns([us.salon for us in user_salons])
     )
     other_salons = [s for s in salons if s.id not in [us.salon_id for us in user_salons]]
