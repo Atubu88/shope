@@ -4,6 +4,7 @@ from aiogram.types import (
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.orm_query import orm_get_user, orm_get_salon_by_id
+from database.models import UserSalon
 from utils.orders import get_order_summary
 
 
@@ -28,7 +29,8 @@ async def notify_salon_about_order(
     user_id = callback.from_user.id
     phone   = data.get("phone") or "Нет номера"
 
-    user = await orm_get_user(session, user_id)
+    user_salon_id = data.get("user_salon_id")
+    user = await session.get(UserSalon, user_salon_id) if user_salon_id else await orm_get_user(session, user_id)
     if not user or not user.salon_id:
         print(f"[notify] salon_id не найден для user_id={user_id}")
         return
@@ -40,7 +42,7 @@ async def notify_salon_about_order(
 
     # ---------- чек для группы салона ----------
     group_summary = await get_order_summary(
-        session, user_id, user.salon_id, data, for_group=True
+        session, user.id, data, for_group=True
     )
     await callback.bot.send_message(
         salon.group_chat_id,
@@ -59,4 +61,3 @@ async def notify_salon_about_order(
             )
         except Exception as e:
             print(f"[notify] Ошибка отправки contact: {e}")
-
