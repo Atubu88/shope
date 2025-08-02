@@ -2,18 +2,20 @@ from typing import Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.orm_query import orm_get_user_carts, orm_get_salon_by_id
+from database.models import UserSalon
 from utils.currency import get_currency_symbol
 
 
 async def get_order_summary(
     session: AsyncSession,
-    user_id: int,
-    salon_id: int,
+    user_salon_id: int,
     state_data: dict,
     for_group: bool = False
 ) -> str:
-    cart_items = await orm_get_user_carts(session, user_id, salon_id)
-    salon = await orm_get_salon_by_id(session, salon_id)
+    cart_items = await orm_get_user_carts(session, user_salon_id)
+    user_salon = await session.get(UserSalon, user_salon_id)
+    salon_id = user_salon.salon_id if user_salon else None
+    salon = await orm_get_salon_by_id(session, salon_id) if salon_id else None
     currency = get_currency_symbol(salon.currency) if salon else "RUB"
 
     lines = []
