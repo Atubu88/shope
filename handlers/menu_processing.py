@@ -20,7 +20,6 @@ from kbds.inline import (
 from utils.paginator import Paginator
 from utils.currency import get_currency_symbol
 from aiogram.types import InputMediaPhoto, FSInputFile
-from sqlalchemy import select
 from database.models import UserSalon
 
 
@@ -170,23 +169,20 @@ async def get_menu_content(
     page: int | None = None,
     product_id: int | None = None,
     user_salon_id: int | None = None,
-    user_id: int | None = None,
+    salon_id: int | None = None,
 ):
-    salon_id = None
-    if user_salon_id:
-        us = await session.get(UserSalon, user_salon_id)
-        salon_id = us.salon_id if us else None
-    elif user_id:
-        us = (
-            await session.execute(
-                select(UserSalon).where(UserSalon.user_id == user_id)
-            )
-        ).scalars().first()
-        salon_id = us.salon_id if us else None
     if salon_id is None:
-        salons = await orm_get_salons(session)
-        if salons:
-            salon_id = salons[0].id
+        if user_salon_id is not None:
+            us = await session.get(UserSalon, user_salon_id)
+            salon_id = us.salon_id if us else None
+        else:
+            salons = await orm_get_salons(session)
+            if len(salons) == 1:
+                salon_id = salons[0].id
+            elif len(salons) > 1:
+                raise ValueError("Multiple salons available", [s.id for s in salons])
+            else:
+                raise ValueError("No salons available")
 
     if level == 0:
         return await main_menu(session, level, menu_name, salon_id)
@@ -195,4 +191,6 @@ async def get_menu_content(
     elif level == 2:
         return await products(session, level, category, page, salon_id)
     elif level == 3:
-        return await carts(session, level, menu_name, page, user_salon_id, product_id, salon_id)
+        return await carts(
+            session, level, menu_name, page, user_salon_id, product_id, salon_id
+        )
