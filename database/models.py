@@ -5,7 +5,8 @@ from sqlalchemy import (
     String,
     Text,
     BigInteger,
-    func, Boolean,
+    func,
+    Boolean,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import UniqueConstraint
@@ -35,6 +36,8 @@ class Salon(Base):
     latitude: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
     longitude: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
     group_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    user_salons: Mapped[list['UserSalon']] = relationship(back_populates='salon')
 
 
 class Banner(Base):
@@ -82,25 +85,43 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, unique=True)
-    first_name: Mapped[str] = mapped_column(String(150), nullable=True)
-    last_name: Mapped[str]  = mapped_column(String(150), nullable=True)
-    phone: Mapped[str]  = mapped_column(String(13), nullable=True)
-    salon_id: Mapped[int | None] = mapped_column(ForeignKey('salon.id'), nullable=True)
     is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    user_salons: Mapped[list['UserSalon']] = relationship(back_populates='user')
+
+
+class UserSalon(Base):
+    __tablename__ = 'user_salon'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id', ondelete='CASCADE'))
+    salon_id: Mapped[int] = mapped_column(ForeignKey('salon.id', ondelete='CASCADE'))
+    first_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(13), nullable=True)
     is_salon_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    salon: Mapped['Salon'] = relationship(backref='users')
+    user: Mapped['User'] = relationship(back_populates='user_salons')
+    salon: Mapped['Salon'] = relationship(back_populates='user_salons')
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'salon_id', name='uq_user_salon'),
+    )
 
 
 class Cart(Base):
     __tablename__ = 'cart'
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id', ondelete='CASCADE'), nullable=False)
-    product_id: Mapped[int] = mapped_column(ForeignKey('product.id', ondelete='CASCADE'), nullable=False)
+    user_salon_id: Mapped[int] = mapped_column(
+        ForeignKey('user_salon.id', ondelete='CASCADE'), nullable=False
+    )
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey('product.id', ondelete='CASCADE'), nullable=False
+    )
     quantity: Mapped[int]
 
-    user: Mapped['User'] = relationship(backref='cart')
+    user_salon: Mapped['UserSalon'] = relationship(backref='cart')
     product: Mapped['Product'] = relationship(backref='cart')
 
 
@@ -108,16 +129,16 @@ class Order(Base):
     __tablename__ = "orders"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    salon_id: Mapped[int] = mapped_column(ForeignKey('salon.id'), nullable=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id'), nullable=False)
+    user_salon_id: Mapped[int] = mapped_column(
+        ForeignKey('user_salon.id'), nullable=False
+    )
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     payment_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="NEW")
     total: Mapped[float] = mapped_column(Numeric(10, 2))
 
-    salon: Mapped['Salon'] = relationship(backref='orders')
-    user: Mapped['User'] = relationship(backref='orders')
+    user_salon: Mapped['UserSalon'] = relationship(backref='orders')
 
 
 class OrderItem(Base):
