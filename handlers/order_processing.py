@@ -11,7 +11,14 @@ from utils.notifications import notify_salon_about_order
 from utils.orders import get_order_summary
 from handlers.menu_processing import get_menu_content
 from utils.geo import haversine, calc_delivery_cost, get_address_from_coords
-from database.orm_query import orm_get_user_carts, orm_get_user, orm_get_salon_by_id, orm_clear_cart, orm_create_order
+from database.orm_query import (
+    orm_get_user_carts,
+    orm_get_user,
+    orm_get_salon_by_id,
+    orm_clear_cart,
+    orm_create_order,
+    orm_get_user_salons,
+)
 from database.models import UserSalon
 
 order_router = Router()
@@ -461,7 +468,7 @@ async def confirm_order(callback: CallbackQuery,
             cart_items=cart_items,
         )
         # 4. Уведомляем салон ДО очистки FSM и корзины!
-        await notify_salon_about_order(callback, state, session)
+        await notify_salon_about_order(callback, state, session, user_salon_id)
         # 5. Очищаем корзину
         await orm_clear_cart(session, user_salon_id)
         # 6. Убираем inline-кнопки
@@ -481,16 +488,24 @@ async def confirm_order(callback: CallbackQuery,
 
 
 
-
 @order_router.callback_query(F.data == "back_to_cart")
 async def back_to_cart(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     await state.clear()                     # ① очистили сразу
 
     user_id = callback.from_user.id
+    user_salons = await orm_get_user_salons(session, user_id)
+    if len(user_salons) != 1:
+        await callback.message.answer("Не удалось определить салон. Пожалуйста, выберите салон.")
+        await callback.answer()
+        return
+
+    user_salon_id = user_salons[0].id
     image, kbds = await get_menu_content(
         session=session,
-        level=3, menu_name="main",
-        page=1, user_id=user_id
+        level=3,
+        menu_name="main",
+        page=1,
+        user_salon_id=user_salon_id,
     )
 
     try:
@@ -601,7 +616,6 @@ async def back_to_phone(callback: CallbackQuery, state: FSMContext):
 
     # Закрываем «часики» на кнопке
     await callback.answer()
-
 
 
 

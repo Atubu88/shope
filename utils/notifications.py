@@ -3,7 +3,7 @@ from aiogram.types import (
 )
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
-from database.orm_query import orm_get_user, orm_get_salon_by_id
+from database.orm_query import orm_get_salon_by_id
 from database.models import UserSalon
 from utils.orders import get_order_summary
 
@@ -24,13 +24,15 @@ async def notify_salon_about_order(
     callback: CallbackQuery,
     state: FSMContext,
     session: AsyncSession,
+    user_salon_id: int,
 ) -> None:
     data    = await state.get_data()
     user_id = callback.from_user.id
     phone   = data.get("phone") or "Нет номера"
 
-    user_salon_id = data.get("user_salon_id")
-    user = await session.get(UserSalon, user_salon_id) if user_salon_id else await orm_get_user(session, user_id)
+    assert data.get("user_salon_id") is not None, "user_salon_id missing in FSM state"
+
+    user = await session.get(UserSalon, user_salon_id)
     if not user or not user.salon_id:
         print(f"[notify] salon_id не найден для user_id={user_id}")
         return

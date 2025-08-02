@@ -107,14 +107,20 @@ async def cancel_location(message: Message, state: FSMContext, session: AsyncSes
 
 
 @settings_router.message(Command("set_group"), IsAdmin())
-async def set_group(message: types.Message, session: AsyncSession):
-    user = await orm_get_user(session, message.from_user.id)
-    salon_id = user.salon_id if user else None
-    if not salon_id:
-        await message.reply("Ваш аккаунт не привязан к салону.")
+async def set_group(message: types.Message, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    salon_id = data.get("salon_id")            # ← берём из state
+
+    if salon_id is None:
+        await message.reply(
+            "Сначала откройте меню настроек нужного салона: "
+            "Админ-меню → ⚙️ Настройки."
+        )
         return
+
     await orm_update_salon_group_chat(session, salon_id, message.chat.id)
-    await message.reply("Группа успешно привязана")
+    await message.reply("Группа успешно привязана.")
+
 
 
 TELEGRAPH_ABOUT_URL = "https://telegra.ph/aucacuva-07-18"
