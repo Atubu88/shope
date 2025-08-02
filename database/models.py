@@ -92,6 +92,17 @@ class User(Base):
     salon: Mapped['Salon'] = relationship(backref='users')
 
 
+class UserSalon(Base):
+    __tablename__ = 'user_salon'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id'), nullable=False)
+    salon_id: Mapped[int] = mapped_column(ForeignKey('salon.id'), nullable=False)
+
+    user: Mapped['User'] = relationship(backref='user_salons')
+    salon: Mapped['Salon'] = relationship(backref='user_salons')
+
+
 class Cart(Base):
     __tablename__ = 'cart'
 
