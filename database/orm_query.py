@@ -313,12 +313,24 @@ async def orm_add_user(
     return user_salon
 
 
-async def orm_get_user(session: AsyncSession, user_id: int, salon_id: int) -> UserSalon | None:
-    stmt = select(UserSalon).where(
-        UserSalon.user_id == user_id, UserSalon.salon_id == salon_id
+async def orm_get_user(
+    session: AsyncSession, user_id: int, salon_id: int | None = None
+) -> UserSalon | None:
+    stmt = select(UserSalon).where(UserSalon.user_id == user_id)
+    if salon_id is not None:
+        stmt = stmt.where(UserSalon.salon_id == salon_id)
+    result = await session.execute(stmt)
+    return result.scalars().first()
+
+
+async def orm_get_user_salons(session: AsyncSession, user_id: int) -> list[UserSalon]:
+    stmt = (
+        select(UserSalon)
+        .where(UserSalon.user_id == user_id)
+        .options(joinedload(UserSalon.salon))
     )
     result = await session.execute(stmt)
-    return result.scalar_one_or_none()
+    return result.scalars().all()
 
 
 ######################## Работа с корзинами #######################################
