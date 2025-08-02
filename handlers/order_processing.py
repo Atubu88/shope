@@ -461,7 +461,7 @@ async def confirm_order(callback: CallbackQuery,
             cart_items=cart_items,
         )
         # 4. Уведомляем салон ДО очистки FSM и корзины!
-        await notify_salon_about_order(callback, state, session)
+        await notify_salon_about_order(callback, state, session, user_salon_id)
         # 5. Очищаем корзину
         await orm_clear_cart(session, user_salon_id)
         # 6. Убираем inline-кнопки
