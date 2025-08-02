@@ -38,6 +38,8 @@ def admin_keyboard() -> InlineKeyboardMarkup:
                                   callback_data="admin_banners")],
             [InlineKeyboardButton(text="✏️ Описание баннера",
                                   callback_data="admin_banner_text")],
+            [InlineKeyboardButton(text="🛒 Заказы",
+                                  callback_data="admin_orders")],
             [InlineKeyboardButton(text="🏠 Создать салон",
                                   callback_data="admin_create_salon")],
             [InlineKeyboardButton(text="⚙️ Настройки",

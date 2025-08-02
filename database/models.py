@@ -11,8 +11,18 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import UniqueConstraint
 
 class Base(DeclarativeBase):
-    created: Mapped[DateTime] = mapped_column(DateTime, default=func.now())
-    updated: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    created: Mapped[DateTime] = mapped_column(
+        DateTime,
+        default=func.now(),
+        server_default=func.now(),
+    )
+    updated: Mapped[DateTime] = mapped_column(
+        DateTime,
+        default=func.now(),
+        onupdate=func.now(),
+        server_default=func.now(),
+    )
+
 
 
 class Salon(Base):
@@ -92,3 +102,32 @@ class Cart(Base):
 
     user: Mapped['User'] = relationship(backref='cart')
     product: Mapped['Product'] = relationship(backref='cart')
+
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    salon_id: Mapped[int] = mapped_column(ForeignKey('salon.id'), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id'), nullable=False)
+    address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    payment_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="NEW")
+    total: Mapped[float] = mapped_column(Numeric(10, 2))
+
+    salon: Mapped['Salon'] = relationship(backref='orders')
+    user: Mapped['User'] = relationship(backref='orders')
+
+
+class OrderItem(Base):
+    __tablename__ = "order_item"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey('orders.id', ondelete='CASCADE'))
+    product_id: Mapped[int] = mapped_column(ForeignKey('product.id'))
+    quantity: Mapped[int]
+    price: Mapped[float] = mapped_column(Numeric(10, 2))
+
+    order: Mapped['Order'] = relationship(backref='items')
+    product: Mapped['Product'] = relationship(backref='order_items')
