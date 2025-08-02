@@ -316,7 +316,11 @@ async def orm_add_user(
 async def orm_get_user(
     session: AsyncSession, user_id: int, salon_id: int | None = None
 ) -> UserSalon | None:
-    stmt = select(UserSalon).where(UserSalon.user_id == user_id)
+    stmt = (
+        select(UserSalon)
+        .where(UserSalon.user_id == user_id)
+        .options(joinedload(UserSalon.user))
+    )
     if salon_id is not None:
         stmt = stmt.where(UserSalon.salon_id == salon_id)
     result = await session.execute(stmt)

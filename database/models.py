@@ -104,6 +104,14 @@ class UserSalon(Base):
     user: Mapped['User'] = relationship(back_populates='user_salons')
     salon: Mapped['Salon'] = relationship(back_populates='user_salons')
 
+    @property
+    def is_super_admin(self) -> bool:
+        """Proxy super admin flag from related :class:`User`.
+
+        Returns ``False`` if user relationship is not set.
+        """
+        return bool(self.user and self.user.is_super_admin)
+
     __table_args__ = (
         UniqueConstraint('user_id', 'salon_id', name='uq_user_salon'),
     )
