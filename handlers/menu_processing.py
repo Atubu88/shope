@@ -8,7 +8,6 @@ from database.orm_query import (
     orm_get_products,
     orm_get_user_carts,
     orm_reduce_product_in_cart,
-    orm_get_user,
     orm_get_salons,
     orm_get_salon_by_id,
 )
@@ -21,12 +20,8 @@ from kbds.inline import (
 from utils.paginator import Paginator
 from utils.currency import get_currency_symbol
 from aiogram.types import InputMediaPhoto, FSInputFile
-
-
-from aiogram.types import InputMediaPhoto
-
-from aiogram.types import InputMediaPhoto, FSInputFile
-import os
+from sqlalchemy import select
+from database.models import UserSalon
 
 
 def get_image_banner(
@@ -124,19 +119,19 @@ async def products(session, level, category, page, salon_id):
         )
 
 
-async def carts(session, level, menu_name, page, user_id, product_id, salon_id):
+async def carts(session, level, menu_name, page, user_salon_id, product_id, salon_id):
     if menu_name == "delete":
-        await orm_delete_from_cart(session, user_id, product_id, salon_id)
+        await orm_delete_from_cart(session, user_salon_id, product_id)
         if page > 1:
             page -= 1
     elif menu_name == "decrement":
-        is_cart = await orm_reduce_product_in_cart(session, user_id, product_id, salon_id)
+        is_cart = await orm_reduce_product_in_cart(session, user_salon_id, product_id)
         if page > 1 and not is_cart:
             page -= 1
     elif menu_name == "increment":
-        await orm_add_to_cart(session, user_id, product_id, salon_id)
+        await orm_add_to_cart(session, user_salon_id, product_id)
 
-    carts = await orm_get_user_carts(session, user_id, salon_id)
+    carts = await orm_get_user_carts(session, user_salon_id)
 
     if not carts:
         banner = await orm_get_banner(session, "cart", salon_id)
@@ -174,12 +169,20 @@ async def get_menu_content(
     category: int | None = None,
     page: int | None = None,
     product_id: int | None = None,
+    user_salon_id: int | None = None,
     user_id: int | None = None,
 ):
     salon_id = None
-    if user_id:
-        user = await orm_get_user(session, user_id)
-        salon_id = user.salon_id if user else None
+    if user_salon_id:
+        us = await session.get(UserSalon, user_salon_id)
+        salon_id = us.salon_id if us else None
+    elif user_id:
+        us = (
+            await session.execute(
+                select(UserSalon).where(UserSalon.user_id == user_id)
+            )
+        ).scalars().first()
+        salon_id = us.salon_id if us else None
     if salon_id is None:
         salons = await orm_get_salons(session)
         if salons:
@@ -192,4 +195,4 @@ async def get_menu_content(
     elif level == 2:
         return await products(session, level, category, page, salon_id)
     elif level == 3:
-        return await carts(session, level, menu_name, page, user_id, product_id, salon_id)
+        return await carts(session, level, menu_name, page, user_salon_id, product_id, salon_id)
