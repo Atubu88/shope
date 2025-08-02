@@ -17,7 +17,7 @@ from aiogram.types import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import Salon
-from database.orm_query import orm_get_user
+from database.orm_query import orm_get_user_salons
 
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -66,9 +66,9 @@ async def show_admin_menu(state: FSMContext,
     # ───── 1. определяем salon_id ────────────────────────────────────────
     salon_id: Optional[int] = data.get("salon_id")
     if salon_id is None:                                 # не было в FSM
-        user = await orm_get_user(session, chat_id)
-        salon_id = user.salon_id if user else None
-        if salon_id:
+        user_salons = await orm_get_user_salons(session, chat_id)
+        if user_salons:
+            salon_id = user_salons[0].salon_id
             await state.update_data(salon_id=salon_id)
 
     # ───── 2. получаем (или задаём по умолчанию) имя салона ──────────────
@@ -120,10 +120,9 @@ async def open_admin(message: Message,
     Сохраняем salon_id пользователя в FSM, чтобы им могли пользоваться
     другие модули (товары, баннеры и др.).
     """
-    user = await orm_get_user(session, message.from_user.id)
-    salon_id = user.salon_id if user else None
-    if salon_id:
-        await state.update_data(salon_id=salon_id)
+    user_salons = await orm_get_user_salons(session, message.from_user.id)
+    if user_salons:
+        await state.update_data(salon_id=user_salons[0].salon_id)
 
     await show_admin_menu(state, message.chat.id, message.bot, session)
 
