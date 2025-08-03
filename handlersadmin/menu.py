@@ -16,7 +16,7 @@ from aiogram.types import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import Salon
+from database.models import Salon, UserSalon
 from database.orm_query import orm_get_user_salons
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -120,9 +120,17 @@ async def open_admin(message: Message,
     Сохраняем salon_id пользователя в FSM, чтобы им могли пользоваться
     другие модули (товары, баннеры и др.).
     """
-    user_salons = await orm_get_user_salons(session, message.from_user.id)
-    if user_salons:
-        await state.update_data(salon_id=user_salons[0].salon_id)
+    data = await state.get_data()
+    user_salon_id = data.get("user_salon_id")
+
+    if user_salon_id is not None:
+        user_salon = await session.get(UserSalon, user_salon_id)
+        if user_salon:
+            await state.update_data(salon_id=user_salon.salon_id)
+    else:
+        user_salons = await orm_get_user_salons(session, message.from_user.id)
+        if user_salons:
+            await state.update_data(salon_id=user_salons[0].salon_id)
 
     await show_admin_menu(state, message.chat.id, message.bot, session)
 

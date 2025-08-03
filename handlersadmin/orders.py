@@ -8,27 +8,38 @@ from utils.currency import get_currency_symbol
 orders_router = Router()
 
 def order_action_kb(order_id: int, status: str) -> InlineKeyboardMarkup:
-    buttons = []
-    # Кнопка "Принять" показываем только для НОВЫЙ
-    if status == "НОВЫЙ":
+    buttons: list[InlineKeyboardButton] = []
+
+    if status == "NEW":
         buttons.append(
-            InlineKeyboardButton(text="✅ Принять", callback_data=f"accept_{order_id}")
+            InlineKeyboardButton(
+                text="✅ Принять",
+                callback_data=f"accept_{order_id}"
+            )
         )
-    # Кнопка "Выполнено" только для В РАБОТЕ
-    if status == "В РАБОТЕ":
+
+    if status == "IN_PROGRESS":
         buttons.append(
-            InlineKeyboardButton(text="🏁 Выполнено", callback_data=f"done_{order_id}")
+            InlineKeyboardButton(
+                text="🏁 Выполнено",
+                callback_data=f"done_{order_id}"
+            )
         )
-    # "Отменить" показываем для всех, кроме ОТМЕНЕН/ВЫПОЛНЕН
-    if status in ("НОВЫЙ", "В РАБОТЕ"):
+
+    if status in ("NEW", "IN_PROGRESS"):
         buttons.append(
-            InlineKeyboardButton(text="❌ Отменить", callback_data=f"cancel_{order_id}")
+            InlineKeyboardButton(
+                text="❌ Отменить",
+                callback_data=f"cancel_{order_id}"
+            )
         )
-    # Кнопка "Назад"
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[buttons, [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_orders")]]
+
+    # «Назад»
+    buttons.append(
+        InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_orders")
     )
-    return kb
+
+    return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
 
 
@@ -36,7 +47,9 @@ def orders_kb(orders):
     buttons = []
     for o in orders:
         time = o.created.strftime("%H:%M")
-        currency = get_currency_symbol(getattr(o.salon, "currency", "RUB"))
+        salon = getattr(o, "user_salon", None)
+        currency_code = getattr(getattr(salon, "salon", None), "currency", "RUB")
+        currency = get_currency_symbol(currency_code)
         buttons.append([
             InlineKeyboardButton(
                 text=f"#{o.id} • {time} • {o.status} • {int(o.total)}{currency}",
@@ -84,14 +97,15 @@ async def show_order_detail(callback: CallbackQuery, state: FSMContext, session:
 
     # ... формирование текста заказа ...
     # пример:
+    currency_code = getattr(getattr(order.user_salon, "salon", None), "currency", "RUB")
     text = (
         f"Заказ #{order.id}\n"
         f"{order.created:%d.%m %H:%M}\n"
-        f"{order.user.first_name or ''} / {order.phone or '-'}\n"
+        f"{getattr(order.user_salon, 'first_name', '')} / {order.phone or '-'}\n"
         f"🍕 {order.items[0].product.name} × {order.items[0].quantity}\n"
         f"{order.address or ''}\n"
         f"Статус: {order.status}\n"
-        f"Итого: {order.total:.0f}{get_currency_symbol(order.salon.currency)}"
+        f"Итого: {order.total:.0f}{get_currency_symbol(currency_code)}"
     )
 
     message_id = (await state.get_data()).get("main_message_id") or callback.message.message_id
@@ -112,9 +126,9 @@ async def change_order_status(callback: CallbackQuery, session: AsyncSession, st
 
     # Статусы для каждой кнопки
     status_map = {
-        "accept": "В РАБОТЕ",
-        "done": "ВЫПОЛНЕН",
-        "cancel": "ОТМЕНЕН",
+        "accept": "IN_PROGRESS",
+        "done": "DONE",
+        "cancel": "CANCELLED",
     }
     new_status = status_map.get(action)
     if not new_status:
@@ -128,4 +142,3 @@ async def change_order_status(callback: CallbackQuery, session: AsyncSession, st
     await orm_update_order_status(session, order_id, salon_id, new_status)
     await show_order_detail(callback, state, session)
     await callback.answer("Статус обновлён!")
-

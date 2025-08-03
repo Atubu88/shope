@@ -41,22 +41,19 @@ async def _thumb(bot, file_id: str) -> str:
 # ---------- Инлайн-ответ ---------------------------------------------------
 @inline_router.inline_query()
 async def answer_products_inline(inline_query: InlineQuery, session: AsyncSession) -> None:
-    """
-    Отдаёт товары в инлайн-режиме с учётом «многосалонности».
-
-    Поддерживаемые шаблоны запроса:
-      • ``""`` (пусто)                     → салон выберется автоматически
-      • ``salon_<id>``                    → конкретный салон
-      • ``salon_<id> cat_<id>``           → конкретный салон + категория
-      • ``cat_<id>``                      → текущий / авто-выбранный салон,
-                                            но конкретная категория
-    """
-
     user_id = inline_query.from_user.id
-    user_salons = await orm_get_user_salons(session, user_id)   # List[UserSalon]
+    user_salons = await orm_get_user_salons(session, user_id)
 
-    # ── 1. Разбираем текст запроса --------------------------------------
     q = inline_query.query.strip()
+
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # ВОТ ЗДЕСЬ — ПРОВЕРКА!
+    # Если строка запроса пуста — не показываем ничего.
+    if not q:
+        await inline_query.answer([], cache_time=1, is_personal=True)
+        return
+    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
     salon_id: int | None = None
     category_id: int | None = None
 
@@ -72,46 +69,44 @@ async def answer_products_inline(inline_query: InlineQuery, session: AsyncSessio
             except (ValueError, IndexError):
                 pass
 
-    # ── 2. Определяем салон --------------------------------------------
+    # Если категория указана, а салон нет — определяем салон по категории (НЕ РЕКОМЕНДУЮТ!)
+    if salon_id is None and category_id is not None:
+        for us in user_salons:
+            categories = await orm_get_categories(session, us.salon_id)
+            allowed_category_ids = [c.id for c in categories]
+            if category_id in allowed_category_ids:
+                salon_id = us.salon_id
+                break
+
     if salon_id is None:
-        # пользователь ничего не указал → пытаемся выбрать
-        if not user_salons:                         # нет ни одного салона
+        if not user_salons:
             await inline_query.answer([], cache_time=1, is_personal=True)
             return
-        elif len(user_salons) == 1:                 # ровно один салон
-            salon_id = user_salons[0].salon_id
-        else:                                       # несколько салонов
-            # 👉 *Стратегия по-умолчанию*: берём первый.
-            #    Можно заменить на выбор «салона по-умолчанию» из профиля
-            #    или отправлять пустой ответ, предлагая уточнить salon_<id>.
-            salon_id = user_salons[0].salon_id
+        salon_id = user_salons[0].salon_id
     else:
-        # в запросе указан salon_<id> — проверяем, имеет ли к нему доступ
         if not any(us.salon_id == salon_id for us in user_salons):
-            # чужой салон → ничего не показываем
             await inline_query.answer([], cache_time=1, is_personal=True)
             return
 
-    # ── 3. Получаем товары ---------------------------------------------
     if category_id is not None:
-        products = await orm_get_products(session, category_id, salon_id)
-    else:
-        products = []
         categories = await orm_get_categories(session, salon_id)
-        for c in categories:
-            products.extend(await orm_get_products(session, c.id, salon_id))
+        allowed_category_ids = [c.id for c in categories]
+        if category_id in allowed_category_ids:
+            products = await orm_get_products(session, category_id, salon_id)
+        else:
+            products = []
+    else:
+        products = await orm_get_products(session, salon_id=salon_id)
 
     salon = await orm_get_salon_by_id(session, salon_id)
     currency = get_currency_symbol(salon.currency) if salon else "RUB"
 
-    # ── 4. Формируем результаты ----------------------------------------
     results = []
-    for prod in products[:50]:                       # Telegram-лимит = 50
+    for prod in products[:50]:
         thumb_url = (
             prod.image if str(prod.image).startswith(("http://", "https://"))
             else await _thumb(inline_query.bot, prod.image)
         )
-
         results.append(
             InlineQueryResultArticle(
                 id=str(prod.id),
@@ -119,12 +114,11 @@ async def answer_products_inline(inline_query: InlineQuery, session: AsyncSessio
                 description=f"{float(prod.price):.2f}{currency}",
                 thumbnail_url=thumb_url,
                 input_message_content=InputTextMessageContent(
-                    message_text=f"/product_{prod.id}",   # наше «шифрованное» сообщение
+                    message_text=f"/product_{prod.id}",
                 ),
             )
         )
 
-    # если товаров нет — отдаём «заглушку»
     if not results:
         results.append(
             InlineQueryResultArticle(
@@ -137,5 +131,4 @@ async def answer_products_inline(inline_query: InlineQuery, session: AsyncSessio
             )
         )
 
-    # ── 5. Ответ --------------------------------------------------------
     await inline_query.answer(results, cache_time=1, is_personal=True)

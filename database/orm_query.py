@@ -207,10 +207,12 @@ async def orm_add_product(session: AsyncSession, data: dict, salon_id: int):
     await session.commit()
 
 
-async def orm_get_products(session: AsyncSession, category_id, salon_id: int):
-    query = select(Product).where(
-        Product.category_id == int(category_id), Product.salon_id == salon_id
-    )
+async def orm_get_products(session: AsyncSession, category_id=None, salon_id: int = None):
+    query = select(Product)
+    if salon_id is not None:
+        query = query.where(Product.salon_id == salon_id)
+    if category_id is not None:
+        query = query.where(Product.category_id == int(category_id))
     result = await session.execute(query)
     return result.scalars().all()
 
