@@ -2,7 +2,11 @@ import math
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from common.texts_for_db import categories, description_for_info_pages
+from common.texts_for_db import (
+    categories,
+    description_for_info_pages,
+    images_for_info_pages,
+)
 from database.models import Banner, Cart, Category, Product, User, Salon, UserSalon
 
 # Простой пагинатор
@@ -109,24 +113,45 @@ async def orm_get_salon_by_id(session, salon_id: int):
 
 ############### Работа с баннерами (информационными страницами) ###############
 
-async def orm_add_banner_description(session: AsyncSession, data: dict, salon_id: int):
-    # Проходим по каждому элементу данных
+async def orm_add_banner_description(
+    session: AsyncSession,
+    data: dict,
+    salon_id: int,
+    images: dict | None = None,
+):
+    """Create or update banners with default descriptions and images.
+
+    ``data`` contains banner descriptions keyed by page name. ``images`` is an
+    optional mapping of page names to image paths used as placeholders for a
+    new salon. When a banner already exists, its description is updated and the
+    image is refreshed only when provided in ``images``.
+    """
+
     for name, description in data.items():
-        # Проверяем, существует ли баннер с данным именем
         query = select(Banner).where(Banner.name == name, Banner.salon_id == salon_id)
         result = await session.execute(query)
         banner = result.scalar()
 
+        image = images.get(name) if images else None
+
         if banner:
-            # Обновляем существующий баннер
+            values = {"description": description}
+            if image is not None:
+                values["image"] = image
             await session.execute(
                 update(Banner)
                 .where(Banner.name == name, Banner.salon_id == salon_id)
-                .values(description=description)
+                .values(**values)
             )
         else:
-            # Добавляем новый баннер, если его нет
-            session.add(Banner(name=name, description=description, salon_id=salon_id))
+            session.add(
+                Banner(
+                    name=name,
+                    description=description,
+                    image=image,
+                    salon_id=salon_id,
+                )
+            )
 
     await session.commit()
 
@@ -255,7 +280,12 @@ async def orm_delete_product(session: AsyncSession, product_id: int, salon_id: i
 async def init_default_salon_content(session: AsyncSession, salon_id: int):
     """Fill newly created salon with default categories and banners."""
     await orm_create_categories(session, categories, salon_id)
-    await orm_add_banner_description(session, description_for_info_pages, salon_id)
+    await orm_add_banner_description(
+        session,
+        description_for_info_pages,
+        salon_id,
+        images_for_info_pages,
+    )
 
 
 
