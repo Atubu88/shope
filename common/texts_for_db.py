@@ -27,3 +27,16 @@ description_for_info_pages = {
     'cart': 'В корзине ничего нет!'
 }
 
+# Default banner images for info pages. Each page gets its own placeholder
+# located in the ``banners`` directory so that newly created salons have
+# distinct images instead of the generic ``default.jpg``.
+images_for_info_pages = {
+    "main": "banners/main.jpg",
+    "about": "banners/about.jpg",
+    "payment": "banners/payment.jpg",
+    "shipping": "banners/shipping.jpg",
+    "catalog": "banners/catalog.jpg",
+    "cart": "banners/cart.jpg",
+}
+
+
