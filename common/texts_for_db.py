@@ -1,6 +1,5 @@
 from aiogram.utils.formatting import Bold, as_list, as_marked_section
 
-categories = ['Еда', 'Напитки']
 
 description_for_info_pages = {
     "main": "Добро пожаловать!",
@@ -27,3 +26,11 @@ description_for_info_pages = {
     'cart': 'В корзине ничего нет!'
 }
 
+images_for_info_pages = {
+    "main": "banners/main.jpg",
+    "about": "banners/about.jpg",
+    "payment": "banners/payment.jpg",
+    "shipping": "banners/shipping.jpg",
+    "catalog": "banners/catalog.jpg",
+    "cart": "banners/cart.jpg",
+}

@@ -81,10 +81,19 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
         await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
         return
 
+    # ➜ Показываем только те салоны, к которым пользователь уже привязан
     user_salons = await orm_get_user_salons(session, user_id)
+
+    # --- 0 салонов — сообщаем, что доступа пока нет ---------------------------
     if not user_salons:
-        await message.answer("Выберите салон:", reply_markup=get_salon_btns(salons))
+        await message.answer(
+            "У вас пока нет салонов. "
+            "Попросите администратора прислать пригласительную ссылку "
+            "или создайте собственный салон по инвайту."
+        )
         return
+
+    # --- 1 салон — сразу заходим в него ---------------------------------------
     if len(user_salons) == 1:
         us = user_salons[0]
         await state.update_data(user_salon_id=us.id)
@@ -97,15 +106,11 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
         await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
         return
 
+    # --- >1 салонов — даём пользователю выбрать среди своих -------------------
     await message.answer(
-        "Выберите салон",
+        "Выберите салон:",
         reply_markup=get_salon_btns([us.salon for us in user_salons])
     )
-    other_salons = [s for s in salons if s.id not in [us.salon_id for us in user_salons]]
-    if other_salons:
-        await message.answer(
-            "Добавить новый салон:", reply_markup=get_salon_btns(other_salons)
-        )
 
 
 async def add_to_cart(
