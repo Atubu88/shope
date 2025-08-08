@@ -27,7 +27,6 @@ user_private_router = Router()
 user_private_router.message.filter(ChatTypeFilter(["private"]))
 
 
-@user_private_router.message(CommandStart())
 @user_private_router.message(CommandStart(), ~InviteFilter())
 async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSession):
     await state.clear()
