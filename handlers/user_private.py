@@ -17,6 +17,7 @@ from database.orm_query import (
 )
 
 from filters.chat_types import ChatTypeFilter
+from handlers.invite_creation import InviteFilter
 from handlers.menu_processing import get_menu_content, products
 from kbds.inline import MenuCallBack, get_callback_btns, SalonCallBack, get_salon_btns
 
@@ -27,6 +28,7 @@ user_private_router.message.filter(ChatTypeFilter(["private"]))
 
 
 @user_private_router.message(CommandStart())
+@user_private_router.message(CommandStart(), ~InviteFilter())
 async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSession):
     await state.clear()
 
