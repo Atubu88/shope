@@ -24,6 +24,8 @@ from handlers.order_processing import order_router
 from handlers.salon_creation import salon_creation_router
 from handlersadmin.menu import admin_menu_router
 from handlers.inline_mode import inline_router
+from handlers.invite_creation import invite_creation_router
+from handlers.invite_link import invite_link_router
 # ALLOWED_UPDATES = ['message', 'edited_message', 'callback_query']
 
 # ✅ Новый способ передачи parse_mode
@@ -48,6 +50,8 @@ dp.include_router(orders_router)
 dp.include_router(salon_creation_router)
 dp.include_router(order_router)
 dp.include_router(inline_router)
+dp.include_router(invite_link_router)
+dp.include_router(invite_creation_router)
 
 async def on_startup(bot):
     pass

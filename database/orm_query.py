@@ -60,20 +60,41 @@ async def orm_get_salons(session: AsyncSession):
     return result.scalars().all()
 
 
-async def orm_create_salon(session: AsyncSession, name: str, slug: str, currency: str = "RUB"):
+async def orm_create_salon(
+    session: AsyncSession,
+    name: str,
+    slug: str,
+    currency: str,
+    timezone: str | None = "UTC",
+) -> Salon:
     stmt = select(Salon).where((Salon.name == name) | (Salon.slug == slug))
     result = await session.execute(stmt)
     salon = result.scalar_one_or_none()
 
     if salon:
         raise ValueError("Salon with this name or slug already exists")
-    new_salon = Salon(name=name, slug=slug, currency=currency)
+    new_salon = Salon(
+        name=name,
+        slug=slug,
+        currency=currency,
+        timezone=timezone or "UTC",
+    )
     session.add(new_salon)
     await session.commit()
     await session.refresh(new_salon)
     return new_salon
 
-async def orm_get_salon_by_slug(session: AsyncSession, slug: str):
+
+async def orm_set_salon_timezone(
+    session: AsyncSession, salon_id: int, tz_name: str
+) -> None:
+    await session.execute(
+        update(Salon).where(Salon.id == salon_id).values(timezone=tz_name)
+    )
+    await session.commit()
+
+
+async def orm_get_salon_by_slug(session: AsyncSession, slug: str) -> Salon | None:
     result = await session.execute(select(Salon).where(Salon.slug == slug))
     return result.scalar_one_or_none()
 

@@ -33,6 +33,7 @@ class Salon(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True)
     slug: Mapped[str] = mapped_column(String(50), unique=True)
     currency: Mapped[str] = mapped_column(String(3), default="RUB")
+    timezone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     latitude: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
     longitude: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
     group_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
