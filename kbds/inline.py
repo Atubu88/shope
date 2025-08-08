@@ -2,6 +2,8 @@ from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from utils.timezone import TZ_GROUPS_ORDER, get_group_timezones
+
 
 class MenuCallBack(CallbackData, prefix="menu"):
     level: int
@@ -188,6 +190,27 @@ def get_admin_main_kb() -> InlineKeyboardMarkup:
     }
     return get_callback_btns(btns=btns, sizes=(2,))
 
+
+
+def get_tz_groups_kb(groups: list[str] | None = None) -> InlineKeyboardMarkup:
+    """Keyboard with timezone groups."""
+    groups = groups or TZ_GROUPS_ORDER
+    kb = InlineKeyboardBuilder()
+    for g in groups:
+        kb.add(InlineKeyboardButton(text=g, callback_data=f"tz_group:{g}"))
+    # arrange buttons in 2-3 columns
+    return kb.adjust(3).as_markup()
+
+
+def get_tz_list_kb(group: str) -> InlineKeyboardMarkup:
+    """Keyboard with timezones of a given group."""
+    kb = InlineKeyboardBuilder()
+    for tz in get_group_timezones(group):
+        kb.add(InlineKeyboardButton(text=tz, callback_data=f"tz_pick:{tz}"))
+    kb.add(
+        InlineKeyboardButton(text="\u2b05\ufe0f К регионам", callback_data="tz_back_groups")
+    )
+    return kb.adjust(1).as_markup()
 
 
 def get_currency_kb() -> InlineKeyboardMarkup:
