@@ -523,11 +523,15 @@ async def orm_get_orders(session: AsyncSession, salon_id: int):
     return result.scalars().all()
 
 
-async def orm_get_order(session: AsyncSession, order_id: int):
+async def orm_get_order(session: AsyncSession, order_id: int, salon_id: int):
     from database.models import Order, OrderItem, Product, UserSalon
     result = await session.execute(
         select(Order)
-        .where(Order.id == order_id)
+        .join(UserSalon)  # связываем с владельцем заказа
+        .where(
+            Order.id == order_id,
+            UserSalon.salon_id == salon_id,  # ← ключевая проверка
+        )
         .options(
             joinedload(Order.items).joinedload(OrderItem.product),
             joinedload(Order.user_salon).joinedload(UserSalon.user),

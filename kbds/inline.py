@@ -2,7 +2,7 @@ from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from utils.timezone import TZ_GROUPS_ORDER, get_group_timezones
+
 
 
 class MenuCallBack(CallbackData, prefix="menu"):

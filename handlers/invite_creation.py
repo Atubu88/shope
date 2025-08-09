@@ -26,27 +26,24 @@ from database.orm_query import (
 from filters.chat_types import ChatTypeFilter
 from utils.slug import generate_unique_slug
 
-# Единый роутер — подключай в main.py
+# Роутер для инвайтов — подключай в main.py до общего старт-хендлера
 invite_creation_router = Router()
 invite_creation_router.message.filter(ChatTypeFilter(["private"]))  # только личка для сообщений
-# ВАЖНО: не вешаем ChatTypeFilter на callback_query — иначе будет падать
+# Специально НЕ вешаем ChatTypeFilter на callback_query
 
-# --- Фильтр для /start с payload (инвайт) ---
+# --- Фильтр для /start с payload "invite_..." ---
 class InviteFilter(Filter):
-    """Allow /start with any payload (optionally check prefix)."""
-    def __init__(self, prefix: str | None = None) -> None:
+    """Allow /start only when payload starts with a given prefix (default: 'invite_')."""
+    def __init__(self, prefix: str = "invite_") -> None:
         self.prefix = prefix
 
     async def __call__(self, message: types.Message) -> bool:
-        if not message.text:
-            return False
-        parts = message.text.split(maxsplit=1)
+        text = message.text or ""
+        parts = text.split(maxsplit=1)
         if len(parts) != 2:
             return False  # нужен payload
         payload = parts[1]
-        if self.prefix is None:
-            return True
-        return payload.startswith(self.prefix)
+        return payload.lower().startswith(self.prefix.lower())
 
 class AddSalon(StatesGroup):
     name = State()
@@ -56,25 +53,37 @@ class AddSalon(StatesGroup):
     phone = State()  # шаг контакта владельца
 
 # --- Валюты ---
+# --- Валюты ---
 def get_currency_kb() -> InlineKeyboardMarkup:
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="₽ RUB", callback_data="currency_RUB"),
-            InlineKeyboardButton(text="$ USD", callback_data="currency_USD"),
-            InlineKeyboardButton(text="€ EUR", callback_data="currency_EUR"),
+            InlineKeyboardButton(text="₽ RUB", callback_data="currency_RUB"),  # Россия
+            InlineKeyboardButton(text="$ USD", callback_data="currency_USD"),  # ОАЭ (доллары для интернац.)
+            InlineKeyboardButton(text="€ EUR", callback_data="currency_EUR"),  # Швеция (для евро-зон)
+        ],
+        [
+            InlineKeyboardButton(text="🇸🇪 SEK", callback_data="currency_SEK"),  # Швеция — крона
+            InlineKeyboardButton(text="🇺🇦 UAH", callback_data="currency_UAH"),  # Украина — гривна
+            InlineKeyboardButton(text="🇰🇿 KZT", callback_data="currency_KZT"),  # Казахстан — тенге
+        ],
+        [
+            InlineKeyboardButton(text="🇰🇬 KGS", callback_data="currency_KGS"),  # Кыргызстан — сом
+            InlineKeyboardButton(text="🇺🇿 UZS", callback_data="currency_UZS"),  # Узбекистан — сум
+            InlineKeyboardButton(text="🇦🇪 AED", callback_data="currency_AED"),  # ОАЭ — дирхам
         ]
     ])
     return kb
 
+
 # --- Тайм-зоны (фикс) ---
 TIMEZONES = [
-    ("Europe/Stockholm", "🇸🇪 Стокгольм"),
-    ("Europe/Moscow",    "🇷🇺 Москва"),
-    ("Europe/Kyiv",      "🇺🇦 Киев"),
-    ("Asia/Tashkent",    "🇺🇿 Ташкент"),
-    ("Asia/Almaty",      "🇰🇿 Алматы"),
-    ("Asia/Bishkek",     "🇰🇬 Бишкек"),
-    ("Asia/Dubai",       "🇦🇪 Дубай"),
+    ("Europe/Stockholm", "🇸🇪 Швеция — Стокгольм"),
+    ("Europe/Moscow",    "🇷🇺 Россия — Москва"),
+    ("Europe/Kyiv",      "🇺🇦 Украина — Киев"),
+    ("Asia/Tashkent",    "🇺🇿 Узбекистан — Ташкент"),
+    ("Asia/Almaty",      "🇰🇿 Казахстан — Алматы"),
+    ("Asia/Bishkek",     "🇰🇬 Кыргызстан — Бишкек"),
+    ("Asia/Dubai",       "🇦🇪 ОАЭ — Дубай"),
 ]
 
 def get_tz_fixed_kb() -> InlineKeyboardMarkup:
@@ -90,8 +99,8 @@ def contact_keyboard() -> ReplyKeyboardMarkup:
         one_time_keyboard=True,
     )
 
-# ================== СТАРТ ПО ИНВАЙТУ ==================
-@invite_creation_router.message(CommandStart(), InviteFilter(prefix=None))
+# ================== СТАРТ ПО ИНВАЙТУ (ТОЛЬКО invite_...) ==================
+@invite_creation_router.message(CommandStart(), InviteFilter())  # prefix по умолчанию = "invite_"
 async def start_via_invite(message: types.Message, state: FSMContext) -> None:
     await state.clear()  # гасим висящие стейты
     # payload = message.text.split(maxsplit=1)[1]  # если нужен
@@ -133,7 +142,7 @@ async def salon_slug_invalid(message: types.Message) -> None:
 async def salon_currency(callback: types.CallbackQuery, state: FSMContext) -> None:
     currency = callback.data.split("_")[-1]
     await state.update_data(currency=currency)
-    await callback.message.edit_text("Выберите тайм-зону:", reply_markup=get_tz_fixed_kb())
+    await callback.message.edit_text("Выберите ваш часовой пояс:", reply_markup=get_tz_fixed_kb())
     await state.set_state(AddSalon.timezone)
     await callback.answer()
 
