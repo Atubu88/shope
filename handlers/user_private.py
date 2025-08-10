@@ -14,12 +14,14 @@ from database.orm_query import (
     orm_get_salon_by_slug,
     orm_get_product,
     orm_get_products,
+    orm_get_user,
 )
 
 from filters.chat_types import ChatTypeFilter
 from handlers.invite_creation import InviteFilter
 from handlers.menu_processing import get_menu_content, products
 from kbds.inline import MenuCallBack, get_callback_btns, SalonCallBack, get_salon_btns
+from common.bot_cmds_list import set_commands
 
 
 
@@ -41,6 +43,10 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
         user = User(user_id=user_id)
         session.add(user)
         await session.commit()
+
+    user_record = await orm_get_user(session, user_id)
+    is_admin = bool(user_record and (user_record.is_super_admin or user_record.is_salon_admin))
+    await set_commands(message.bot, user_id, is_admin)
 
     salons = await orm_get_salons(session)
     if not salons:

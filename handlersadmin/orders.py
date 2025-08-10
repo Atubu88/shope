@@ -1,13 +1,22 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 from aiogram.fsm.context import FSMContext
+from aiogram.filters import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.orm_query import orm_get_orders, orm_get_order, orm_update_order_status
 from utils.currency import get_currency_symbol
 from utils.timezone import to_timezone
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
+from filters.chat_types import ChatTypeFilter, IsAdmin
 
 orders_router = Router()
+orders_router.message.filter(ChatTypeFilter(["private"]), IsAdmin())
+orders_router.callback_query.filter(IsAdmin())
 
 CUSTOMER_STATUS_MSGS = {
     "IN_PROGRESS": "Ваш заказ #{} принят и готовится. 🧑‍🍳",
@@ -115,22 +124,46 @@ def orders_kb(orders):
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-@orders_router.callback_query(F.data == "admin_orders")
-async def show_orders(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+async def _show_orders(bot, chat_id: int, message_id: int, state: FSMContext, session: AsyncSession):
     data = await state.get_data()
-    message_id = data.get("main_message_id") or callback.message.message_id
     salon_id = data.get("salon_id")
+    if salon_id is None:
+        await bot.send_message(chat_id, "Салон не определён")
+        return
+
     await state.clear()
     await state.update_data(main_message_id=message_id, salon_id=salon_id)
 
     orders = await orm_get_orders(session, salon_id)
-    await callback.bot.edit_message_text(
-        chat_id=callback.message.chat.id,
-        message_id=message_id,
-        text="Список заказов:",
-        reply_markup=orders_kb(orders),
-    )
+    try:
+        await bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text="Список заказов:",
+            reply_markup=orders_kb(orders),
+        )
+    except TelegramBadRequest:
+        msg = await bot.send_message(
+            chat_id=chat_id,
+            text="Список заказов:",
+            reply_markup=orders_kb(orders),
+        )
+        await state.update_data(main_message_id=msg.message_id, salon_id=salon_id)
+
+
+@orders_router.callback_query(F.data == "admin_orders")
+async def show_orders(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    message_id = data.get("main_message_id") or callback.message.message_id
+    await _show_orders(callback.bot, callback.message.chat.id, message_id, state, session)
     await callback.answer()
+
+
+@orders_router.message(Command("orders"))
+async def orders_cmd(message: Message, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    message_id = data.get("main_message_id") or message.message_id
+    await _show_orders(message.bot, message.chat.id, message_id, state, session)
 
 
 def order_detail_kb(order_id: int) -> InlineKeyboardMarkup:
