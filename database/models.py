@@ -7,6 +7,7 @@ from sqlalchemy import (
     BigInteger,
     func,
     Boolean,
+    Integer,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import UniqueConstraint
@@ -37,6 +38,8 @@ class Salon(Base):
     latitude: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
     longitude: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
     group_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    free_plan: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    order_limit: Mapped[int] = mapped_column(Integer, default=30, server_default="30")
 
     user_salons: Mapped[list['UserSalon']] = relationship(back_populates='salon')
 
