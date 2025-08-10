@@ -7,6 +7,8 @@ from aiogram import Router, F
 from aiogram.client.bot import Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
+from filters.chat_types import ChatTypeFilter, IsAdmin
+from common.bot_cmds_list import set_commands
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
     CallbackQuery,
@@ -22,6 +24,8 @@ from database.orm_query import orm_get_user_salons
 # ──────────────────────────────────────────────────────────────────────────
 
 admin_menu_router = Router()
+admin_menu_router.message.filter(ChatTypeFilter(["private"]), IsAdmin())
+admin_menu_router.callback_query.filter(IsAdmin())
 
 
 # ─────────────────────────── клавиатура админ‑меню ───────────────────────
@@ -133,6 +137,7 @@ async def open_admin(message: Message,
             await state.update_data(salon_id=user_salons[0].salon_id)
 
     await show_admin_menu(state, message.chat.id, message.bot, session)
+    await set_commands(message.bot, message.from_user.id, True)
 
 
 @admin_menu_router.callback_query(F.data == "admin_menu")

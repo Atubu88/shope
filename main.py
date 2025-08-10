@@ -10,6 +10,7 @@ load_dotenv(find_dotenv())
 
 from middlewares.db import DataBaseSession
 from database.engine import  drop_db, session_maker
+from common.bot_cmds_list import user_commands
 
 from handlers.user_private import user_private_router
 from handlers.admin_private import admin_router
@@ -54,7 +55,9 @@ dp.include_router(invite_link_router)
 dp.include_router(invite_creation_router)
 
 async def on_startup(bot):
-    pass
+    await bot.set_my_commands(
+        user_commands, scope=types.BotCommandScopeAllPrivateChats()
+    )
 
 async def on_shutdown(bot):
     print('бот лег')
@@ -66,8 +69,6 @@ async def main():
     dp.update.middleware(DataBaseSession(session_pool=session_maker))
 
     await bot.delete_webhook(drop_pending_updates=True)
-    # await bot.delete_my_commands(scope=types.BotCommandScopeAllPrivateChats())
-    # await bot.set_my_commands(commands=private, scope=types.BotCommandScopeAllPrivateChats())
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
 asyncio.run(main())
