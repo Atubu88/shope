@@ -1,35 +1,35 @@
 services:
-  db:
-    image: postgres:16
-    restart: always
+  postgres:
+    image: postgres:15
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    # Healthcheck (по желанию)
+      - pgshopdata:/var/lib/postgresql/data
+    # Если нужно подключаться к БД с хоста (pgAdmin/psql), добавь порты:
+    # ports:
+    #   - "5434:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
-      timeout: 3s
-      retries: 5
+      timeout: 5s
+      retries: 10
+    networks: [shopnet]
 
-  bot:
-    build: .           # <-- Говорим docker-compose собирать образ из Dockerfile в текущей папке!
+  shop-bot:
     image: atubu/new-multishope:latest
-    container_name: my_telegram_bot
-    restart: always
-    environment:
-      - PYTHONUNBUFFERED=1
-      - DB_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
+    env_file: .env            # или .env.prod
     depends_on:
-      - db
-    # Если нужен volume для БД SQLite — закомментируй или удали эту строку (ты уже перешёл на PostgreSQL)
-    # volumes:
-    #   - ./my_base.db:/app/my_base.db
+      postgres:
+        condition: service_healthy
+    environment:
+      RUN_MIGRATIONS: "1"     # чтобы alembic upgrade head выполнался при старте
+    networks: [shopnet]
 
 volumes:
-  postgres_data:
+  pgshopdata:
+
+networks:
+  shopnet:
+    driver: bridge

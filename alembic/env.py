@@ -1,43 +1,44 @@
-import asyncio
 import os
 import sys
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy import create_engine
+from dotenv import load_dotenv
 
-from dotenv import load_dotenv, find_dotenv
-load_dotenv(find_dotenv())
+# === Подгрузка .env или .env.prod ===
+env_file = ".env.prod" if os.getenv("ENV") == "prod" else ".env"
+load_dotenv(env_file)
+print(f"[Alembic] Загружен файл переменных: {env_file}")
 
-# 🔧 Добавляем путь к проекту
+# чтобы можно было импортировать проектные модули
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# 🔻 Импортируем Base и модели
-from database.models import Base  # declarative_base()
+# импортируем Base со всеми моделями
+from database.models import Base  # noqa
 
 # Alembic config
 config = context.config
 
-# Подключение логгера
+# Логирование Alembic
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Метаданные для autogenerate
+# Метаданные моделей (для autogenerate)
 target_metadata = Base.metadata
 
 
-def get_url():
-    # Путь к SQLite-файлу
-    # Получаем URL базы данных из переменных окружения
-    db_url = os.getenv("DB_URL")
-    if not db_url:
-        raise RuntimeError("DB_URL environment variable is not set")
-    return db_url
+def get_sync_url() -> str:
+    url = os.getenv("DATABASE_URL_SYNC")
+    if not url:
+        raise RuntimeError("DATABASE_URL_SYNC is not set in environment")
+    print(f"[Alembic] Подключение к базе: {url}")
+    return url
 
 
-def run_migrations_offline():
-    """Генерация SQL-файла без подключения к БД"""
-    url = get_url()
+def run_migrations_offline() -> None:
+    """Run migrations in 'offline' mode."""
+    url = get_sync_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -49,28 +50,19 @@ def run_migrations_offline():
         context.run_migrations()
 
 
-async def run_migrations_online():
-    """Асинхронное выполнение миграции в реальной БД"""
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section),
-        prefix="sqlalchemy.",
-        poolclass=None,
-        url=get_url(),
-    )
+def run_migrations_online() -> None:
+    """Run migrations in 'online' mode."""
+    url = get_sync_url()
+    connectable = create_engine(url)
 
-    async with connectable.connect() as connection:
-        def do_run_migrations(sync_connection):
-            context.configure(
-                connection=sync_connection,
-                target_metadata=target_metadata,
-            )
-            with context.begin_transaction():
-                context.run_migrations()
+    with connectable.connect() as connection:
+        context.configure(connection=connection, target_metadata=target_metadata)
 
-        await connection.run_sync(do_run_migrations)
+        with context.begin_transaction():
+            context.run_migrations()
 
 
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    asyncio.run(run_migrations_online())
+    run_migrations_online()

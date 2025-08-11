@@ -1,5 +1,5 @@
 import math
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from common.texts_for_db import  description_for_info_pages, images_for_info_pages
@@ -78,6 +78,8 @@ async def orm_create_salon(
         slug=slug,
         currency=currency,
         timezone=timezone or "UTC",
+        free_plan=True,
+        order_limit=30,
     )
     session.add(new_salon)
     await session.commit()
@@ -509,6 +511,16 @@ async def orm_create_order(
     await session.commit()
     await session.refresh(order)
     return order
+
+async def orm_get_orders_count(session: AsyncSession, salon_id: int) -> int:
+    from database.models import Order, UserSalon
+    return await session.scalar(
+        select(func.count())
+        .select_from(Order)
+        .join(UserSalon, Order.user_salon_id == UserSalon.id)
+        .where(UserSalon.salon_id == salon_id)
+    ) or 0
+
 
 
 async def orm_get_orders(session: AsyncSession, salon_id: int):

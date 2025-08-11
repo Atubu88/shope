@@ -6,8 +6,9 @@ from sqlalchemy import (
     Text,
     BigInteger,
     func,
-    Boolean,
+    Boolean, Integer,
 )
+from sqlalchemy import text as sa_text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import UniqueConstraint
 
@@ -37,6 +38,8 @@ class Salon(Base):
     latitude: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
     longitude: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
     group_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    free_plan: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=sa_text("true"))
+    order_limit: Mapped[int] = mapped_column(Integer, nullable=False, server_default="30")
 
     user_salons: Mapped[list['UserSalon']] = relationship(back_populates='salon')
 
@@ -82,7 +85,7 @@ class Product(Base):
 
 
 class User(Base):
-    __tablename__ = 'user'
+    __tablename__ = 'users'
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, unique=True)
@@ -95,7 +98,7 @@ class UserSalon(Base):
     __tablename__ = 'user_salon'
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id', ondelete='CASCADE'))
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.user_id', ondelete='CASCADE'))
     salon_id: Mapped[int] = mapped_column(ForeignKey('salon.id', ondelete='CASCADE'))
     first_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(150), nullable=True)

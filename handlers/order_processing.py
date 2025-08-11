@@ -17,7 +17,7 @@ from database.orm_query import (
     orm_get_salon_by_id,
     orm_clear_cart,
     orm_create_order,
-    orm_get_user_salons,
+    orm_get_user_salons, orm_get_orders_count,
 )
 from database.models import UserSalon
 
@@ -459,6 +459,21 @@ async def confirm_order(callback: CallbackQuery,
 
     # 3. Если корзина не пуста и есть salon — оформляем заказ
     if user_salon_id and cart_items:
+        user_salon = await session.get(UserSalon, user_salon_id)
+        salon = (
+            await orm_get_salon_by_id(session, user_salon.salon_id)
+            if user_salon
+            else None
+        )
+        if salon and salon.free_plan:
+            orders_count = await orm_get_orders_count(session, salon.id)
+            if orders_count >= salon.order_limit:
+                await callback.message.answer(
+                    f"Вы достигли лимита бесплатного тарифа ({salon.order_limit} заказов). Чтобы продолжить приём заказов, продлите подписку."
+                )
+                await state.clear()
+                return
+
         order = await orm_create_order(
             session,
             user_salon_id=user_salon_id,

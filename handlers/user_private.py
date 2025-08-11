@@ -5,6 +5,7 @@ from aiogram.types import Message
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from common.bot_cmds_list import set_commands
 from database.models import Salon, User, UserSalon
 from database.orm_query import (
     orm_add_to_cart,
@@ -13,7 +14,7 @@ from database.orm_query import (
     orm_get_user_salons,
     orm_get_salon_by_slug,
     orm_get_product,
-    orm_get_products,
+    orm_get_products, orm_get_user,
 )
 
 from filters.chat_types import ChatTypeFilter
@@ -41,6 +42,10 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
         user = User(user_id=user_id)
         session.add(user)
         await session.commit()
+
+    user_record = await orm_get_user(session, user_id)
+    is_admin = bool(user_record and (user_record.is_super_admin or user_record.is_salon_admin))
+    await set_commands(message.bot, user_id, is_admin)
 
     salons = await orm_get_salons(session)
     if not salons:

@@ -16,7 +16,7 @@ web_app/
 tests/
 
 # Исключаем локальные медиа
-banners/
+
 uploads/
 
 # Docker и Compose
