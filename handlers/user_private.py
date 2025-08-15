@@ -170,13 +170,16 @@ async def user_menu(
     session: AsyncSession,
     state: FSMContext,
 ):
-
     if callback_data.menu_name == "add_to_cart":
         await add_to_cart(callback, callback_data, session, state)
         return
 
     data = await state.get_data()
     user_salon_id = data.get("user_salon_id")
+
+    if not user_salon_id:
+        await callback.answer("Салон не выбран. Перезапустите бота командой /start.")
+        return
 
     media, reply_markup = await get_menu_content(
         session,
@@ -190,6 +193,7 @@ async def user_menu(
 
     await callback.message.edit_media(media=media, reply_markup=reply_markup)
     await callback.answer()
+
 
 
 @user_private_router.message(F.text.startswith("/product_"))

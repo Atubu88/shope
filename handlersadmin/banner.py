@@ -10,7 +10,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.orm_query import orm_change_banner_image, orm_get_info_pages
+from database.orm_query import orm_change_banner_image, orm_get_info_pages, init_default_salon_content
 from .menu import show_admin_menu
 
 banner_router = Router()
@@ -36,8 +36,21 @@ async def start_banner(callback: CallbackQuery, state: FSMContext, session: Asyn
     salon_id = old_data.get("salon_id")
     message_id = old_data.get("main_message_id") or callback.message.message_id
     await state.clear()
+
+    # Если salon_id отсутствует, сообщаем об ошибке и возвращаем в меню
+    if salon_id is None:
+        await state.update_data(main_message_id=message_id)
+        await callback.answer("Не указан салон", show_alert=True)
+        await show_admin_menu(state, callback.message.chat.id, callback.bot, session)
+        return
+
     await state.update_data(main_message_id=message_id, salon_id=salon_id)
+
     pages = await orm_get_info_pages(session, salon_id)
+    if not pages:
+        await init_default_salon_content(session, salon_id)
+        pages = await orm_get_info_pages(session, salon_id)
+
     await state.set_state(BannerFSM.page)
     await callback.bot.edit_message_text(
         chat_id=callback.message.chat.id,

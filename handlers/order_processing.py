@@ -48,7 +48,7 @@ def geo_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
-            [KeyboardButton(text="⬅️ Назад")],    # ← обычный текст, без константы
+            [KeyboardButton(text="⬅️ Наза")],    # ← обычный текст, без константы
         ],
         resize_keyboard=True,
         one_time_keyboard=True

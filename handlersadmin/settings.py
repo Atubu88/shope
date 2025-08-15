@@ -10,13 +10,15 @@ from aiogram.types import (
 )
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from database.models import Salon
 from .menu import show_admin_menu
 from database.orm_query import orm_update_salon_location, orm_get_user, orm_update_salon_group_chat
 from filters.chat_types import IsAdmin
 from aiogram import types
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 
 settings_router = Router()
 
@@ -106,20 +108,32 @@ async def cancel_location(message: Message, state: FSMContext, session: AsyncSes
 
 
 
-@settings_router.message(Command("set_group"), IsAdmin())
-async def set_group(message: types.Message, state: FSMContext, session: AsyncSession):
-    data = await state.get_data()
-    salon_id = data.get("salon_id")            # ← берём из state
-
-    if salon_id is None:
-        await message.reply(
-            "Сначала откройте меню настроек нужного салона: "
-            "Админ-меню → ⚙️ Настройки."
-        )
+@settings_router.message(Command("set_group"))
+async def set_group(message: types.Message, command: CommandObject, session: AsyncSession):
+    # Команду нужно писать в самой группе
+    if message.chat.type not in ("group", "supergroup"):
+        await message.reply("Отправь эту команду в нужной группе.")
         return
 
-    await orm_update_salon_group_chat(session, salon_id, message.chat.id)
-    await message.reply("Группа успешно привязана.")
+    # /set_group <slug>
+    slug = (command.args or "").strip()
+    if not slug:
+        await message.reply("Укажи салон в формате: /set_group slug", parse_mode=None)
+        return
+
+    # Ищем салон по slug
+    res = await session.execute(select(Salon).where(Salon.slug == slug))
+    salon = res.scalars().first()
+    if not salon:
+        await message.reply("Салон не найден. Проверь slug.", parse_mode=None)
+        return
+
+    # Сохраняем chat_id группы в салон
+    salon.group_chat_id = message.chat.id
+    await session.commit()
+
+    await message.reply(f"Группа привязана к салону: {salon.name}", parse_mode=None)
+
 
 
 

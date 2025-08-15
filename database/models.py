@@ -131,7 +131,7 @@ class Cart(Base):
     product_id: Mapped[int] = mapped_column(
         ForeignKey('product.id', ondelete='CASCADE'), nullable=False
     )
-    quantity: Mapped[int]
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     user_salon: Mapped['UserSalon'] = relationship(backref='cart')
     product: Mapped['Product'] = relationship(backref='cart')

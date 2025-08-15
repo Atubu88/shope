@@ -1,5 +1,29 @@
+import httpx
 import requests
 from math import radians, cos, sin, asin, sqrt, ceil
+
+
+async def geocode_address(address: str) -> tuple[float, float] | None:
+    """
+    Асинхронное геокодирование адреса (название улицы, города и т.д.) через Nominatim API.
+    Возвращает (latitude, longitude) или None.
+    """
+    url = "https://nominatim.openstreetmap.org/search"
+    params = {
+        "q": address,
+        "format": "json",
+        "limit": 1,
+    }
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        response = await client.get(url, params=params, headers={"User-Agent": "telegram-bot"})
+        data = response.json()
+        if data:
+            lat = float(data[0]["lat"])
+            lon = float(data[0]["lon"])
+            return lat, lon
+        return None
+
 
 def haversine(lat1, lon1, lat2, lon2):
     """

@@ -17,7 +17,6 @@ tests/
 
 # Исключаем локальные медиа
 
-uploads/
 
 # Docker и Compose
 docker-compose.override.yml

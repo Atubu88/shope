@@ -4,12 +4,9 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import create_engine
-from dotenv import load_dotenv
 
-# === Подгрузка .env или .env.prod ===
-env_file = ".env.prod" if os.getenv("ENV") == "prod" else ".env"
-load_dotenv(env_file)
-print(f"[Alembic] Загружен файл переменных: {env_file}")
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
 
 # чтобы можно было импортировать проектные модули
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -32,7 +29,6 @@ def get_sync_url() -> str:
     url = os.getenv("DATABASE_URL_SYNC")
     if not url:
         raise RuntimeError("DATABASE_URL_SYNC is not set in environment")
-    print(f"[Alembic] Подключение к базе: {url}")
     return url
 
 
