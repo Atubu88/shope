@@ -1,10 +1,10 @@
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 from aiogram.utils.i18n import I18n
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Callable, Dict, Any, Awaitable
 
-from database.orm_query import orm_get_user  # важно!
 from database.models import User
 
 class UserLocaleMiddleware(BaseMiddleware):
@@ -30,7 +30,8 @@ class UserLocaleMiddleware(BaseMiddleware):
         if not user_id:
             return await handler(event, data)
 
-        user = await orm_get_user(session, user_id)
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
         if user:
             lang = user.language or self.i18n.default_locale
             self.i18n.ctx_locale.set(lang)
