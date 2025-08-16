@@ -76,6 +76,10 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
         await session.commit()
 
     user_record = await orm_get_user(session, user_id)
+
+    if user_record and user_record.user and user_record.user.language:
+        i18n.ctx_locale.set(user_record.user.language)
+
     is_admin = bool(user_record and (user_record.is_super_admin or user_record.is_salon_admin))
     await set_commands(message.bot, user_id, is_admin)
 
