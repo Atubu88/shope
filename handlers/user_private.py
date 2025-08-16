@@ -35,7 +35,15 @@ user_private_router.message.filter(ChatTypeFilter(["private"]))
 
 
 @user_private_router.message(Command("language"))
-async def cmd_language(message: types.Message):
+async def cmd_language(message: types.Message, session: AsyncSession, i18n: I18n):
+    # 1) подтянем язык пользователя из БД
+    lang = await session.scalar(
+        select(User.language).where(User.user_id == message.from_user.id)
+    )
+    if lang:
+        i18n.ctx_locale.set(lang)   # 2) выставим локаль на этот апдейт
+
+    # 3) теперь строки переведутся правильно
     kb = InlineKeyboardBuilder()
     kb.button(text=_("Русский"), callback_data="setlang_ru")
     kb.button(text=_("English"), callback_data="setlang_en")
