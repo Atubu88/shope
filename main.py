@@ -43,8 +43,7 @@ i18n = I18n(path="locales", domain="messages", default_locale="ru")
 # сначала стандартный simple-middleware
 dp.update.middleware(SimpleI18nMiddleware(i18n))
 
-# потом уже кастомный, который подтягивает язык из БД
-dp.update.middleware(UserLocaleMiddleware(i18n))
+
 dp.include_router(user_private_router)
 dp.include_router(admin_menu_router)
 dp.include_router(add_product_router)
@@ -71,8 +70,9 @@ async def main():
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)
 
-    dp.update.middleware(DataBaseSession(session_pool=session_maker))
-    dp.update.middleware(UserLocaleMiddleware(i18n))
+    dp.update.middleware(DataBaseSession(session_pool=session_maker))  # 1. Сначала БД
+    dp.update.middleware(UserLocaleMiddleware(i18n))  # 2. Потом кастомный middleware
+    dp.update.middleware(SimpleI18nMiddleware(i18n))
 
     await bot.delete_webhook(drop_pending_updates=True)
     # await bot.delete_my_commands(scope=types.BotCommandScopeAllPrivateChats())

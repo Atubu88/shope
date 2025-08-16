@@ -1,7 +1,7 @@
 import math
 from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from common.texts_for_db import  description_for_info_pages, images_for_info_pages
 from database.models import Banner, Cart, Category, Product, User, Salon, UserSalon
 
@@ -334,7 +334,8 @@ async def orm_add_user(
     user_salon = (
         await session.execute(
             select(UserSalon).where(
-                UserSalon.user_id == user_id, UserSalon.salon_id == salon_id
+                UserSalon.user_id == user_id,
+                UserSalon.salon_id == salon_id,
             )
         )
     ).scalar_one_or_none()
@@ -360,7 +361,14 @@ async def orm_add_user(
             user_salon.is_salon_admin = True
 
     await session.commit()
-    return user_salon
+
+    # 👉 Повторно получаем user_salon с подгруженным user
+    result = await session.execute(
+        select(UserSalon)
+        .options(selectinload(UserSalon.user))
+        .where(UserSalon.id == user_salon.id)
+    )
+    return result.scalar_one()
 
 
 async def orm_get_user(

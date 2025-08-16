@@ -21,7 +21,7 @@ from utils.paginator import Paginator
 from utils.currency import get_currency_symbol
 from aiogram.types import InputMediaPhoto, FSInputFile
 from database.models import UserSalon
-
+from aiogram.utils.i18n import gettext as _
 
 def get_image_banner(
     image: str | None,
@@ -134,7 +134,10 @@ async def carts(session, level, menu_name, page, user_salon_id, product_id, salo
 
     if not carts:
         banner = await orm_get_banner(session, "cart", salon_id)
-        image = get_image_banner(banner.image if banner else None, f"<strong>{banner.description}</strong>" if banner else "Корзина пуста")
+        image = get_image_banner(
+            banner.image if banner else None,
+            f"<strong>{banner.description}</strong>" if banner else _("Корзина пуста"),
+        )
         kbds = get_user_cart(level=level, page=None, pagination_btns=None, product_id=None)
     else:
         paginator = Paginator(carts, page=page)

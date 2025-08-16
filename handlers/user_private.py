@@ -4,7 +4,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from aiogram.utils.i18n import gettext as _, I18n
-#from utils.i18n import _
 
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import select
@@ -187,6 +186,7 @@ async def choose_salon(
     callback_data: SalonCallBack,
     session: AsyncSession,
     state: FSMContext,
+    i18n: I18n,
 ):
     user_salon = await orm_add_user(
         session,
@@ -196,6 +196,11 @@ async def choose_salon(
         last_name=callback.from_user.last_name,
     )
     await state.update_data(user_salon_id=user_salon.id)
+
+    # 🛠️ Фикс: вручную установить язык
+    if user_salon.user and user_salon.user.language:
+        i18n.ctx_locale.set(user_salon.user.language)
+
     media, reply_markup = await get_menu_content(
         session,
         level=0,
@@ -204,6 +209,7 @@ async def choose_salon(
     )
     await callback.message.edit_text(_("Салон выбран"))
     await callback.message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
+
 
 
 @user_private_router.callback_query(MenuCallBack.filter())
