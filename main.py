@@ -4,11 +4,13 @@ import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.client.bot import DefaultBotProperties
+from aiogram.utils.i18n import I18n, gettext as _, ngettext, I18nMiddleware, SimpleI18nMiddleware
 from dotenv import find_dotenv, load_dotenv
 
 load_dotenv(find_dotenv())
 
 from middlewares.db import DataBaseSession
+from middlewares.user_locale import UserLocaleMiddleware
 from database.engine import  session_maker
 
 from handlers.user_private import user_private_router
@@ -36,7 +38,13 @@ bot = Bot(
 
 
 dp = Dispatcher()
+i18n = I18n(path="locales", domain="messages", default_locale="ru")
 
+# сначала стандартный simple-middleware
+dp.update.middleware(SimpleI18nMiddleware(i18n))
+
+# потом уже кастомный, который подтягивает язык из БД
+dp.update.middleware(UserLocaleMiddleware(i18n))
 dp.include_router(user_private_router)
 dp.include_router(admin_menu_router)
 dp.include_router(add_product_router)
@@ -64,6 +72,7 @@ async def main():
     dp.shutdown.register(on_shutdown)
 
     dp.update.middleware(DataBaseSession(session_pool=session_maker))
+    dp.update.middleware(UserLocaleMiddleware(i18n))
 
     await bot.delete_webhook(drop_pending_updates=True)
     # await bot.delete_my_commands(scope=types.BotCommandScopeAllPrivateChats())

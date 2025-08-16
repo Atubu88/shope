@@ -90,6 +90,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, unique=True)
     is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    language: Mapped[str] = mapped_column(String(2), default='ru')
 
     user_salons: Mapped[list['UserSalon']] = relationship(back_populates='user')
 

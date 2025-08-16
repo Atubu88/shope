@@ -1,0 +1,96 @@
+# Translations template for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-08-16 12:29+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: handlers/user_private.py:41
+msgid "Русский"
+msgstr ""
+
+#: handlers/user_private.py:42
+msgid "English"
+msgstr ""
+
+#: handlers/user_private.py:44
+msgid "Выберите язык"
+msgstr ""
+
+#: handlers/user_private.py:56
+msgid "Язык обновлён"
+msgstr ""
+
+#: handlers/user_private.py:89
+msgid ""
+"✅ Вы стали суперадмином.\n"
+"Создайте первый салон командой /create_sалon"
+msgstr ""
+
+#: handlers/user_private.py:93
+msgid "Салонов пока нет. Обратитесь к администратору."
+msgstr ""
+
+#: handlers/user_private.py:117 handlers/user_private.py:143
+#, python-brace-format
+msgid "Вы находитесь в салоне: <b>{name}</b>"
+msgstr ""
+
+#: handlers/user_private.py:133
+msgid ""
+"У вас пока нет салонов. Попросите администратора прислать пригласительную"
+" ссылку или создайте собственный салон по инвайту."
+msgstr ""
+
+#: handlers/user_private.py:156
+msgid "Выберите салон:"
+msgstr ""
+
+#: handlers/user_private.py:170
+msgid "Салон не выбран."
+msgstr ""
+
+#: handlers/user_private.py:177
+msgid "Товар добавлен в корзину."
+msgstr ""
+
+#: handlers/user_private.py:201
+msgid "Салон выбран"
+msgstr ""
+
+#: handlers/user_private.py:221
+msgid "Салон не выбран. Перезапустите бота командой /start."
+msgstr ""
+
+#: handlers/user_private.py:247
+msgid "Салон не выбран. Перезапустите /start."
+msgstr ""
+
+#: handlers/user_private.py:252
+msgid "Салон не найден. Перезапустите /start."
+msgstr ""
+
+#: handlers/user_private.py:259
+msgid "Товар не найден!"
+msgstr ""
+
+#: handlers/user_private.py:267
+msgid "Товар не найден в этой категории!"
+msgstr ""
+
+#: handlers/user_private.py:290
+msgid "Ошибка при загрузке товара."
+msgstr ""
+

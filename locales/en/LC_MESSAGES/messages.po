@@ -1,0 +1,100 @@
+# English translations for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-08-16 12:29+0200\n"
+"PO-Revision-Date: 2025-08-16 15:43+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: handlers/user_private.py:41
+msgid "Русский"
+msgstr "Russian"
+
+#: handlers/user_private.py:42
+msgid "English"
+msgstr "English"
+
+#: handlers/user_private.py:44
+msgid "Выберите язык"
+msgstr "Choose a language"
+
+#: handlers/user_private.py:56
+msgid "Язык обновлён"
+msgstr "Language updated"
+
+#: handlers/user_private.py:89
+msgid ""
+"✅ Вы стали суперадмином.\n"
+"Создайте первый салон командой /create_sалон"
+msgstr ""
+"✅ You are now a super admin.\n"
+"Create the first salon with the command /create_salon"
+
+#: handlers/user_private.py:93
+msgid "Салонов пока нет. Обратитесь к администратору."
+msgstr "There are no salons yet. Please contact the administrator."
+
+#: handlers/user_private.py:117 handlers/user_private.py:143
+#, python-brace-format
+msgid "Вы находитесь в салоне: <b>{name}</b>"
+msgstr "You are in the salon: <b>{name}</b>"
+
+#: handlers/user_private.py:133
+msgid ""
+"У вас пока нет салонов. Попросите администратора прислать пригласительную"
+" ссылку или создайте собственный салон по инвайту."
+msgstr ""
+"You don’t have any salons yet. Ask an administrator for an invitation link "
+"or create your own salon by invite."
+
+#: handlers/user_private.py:156
+msgid "Выберите салон:"
+msgstr "Choose a salon:"
+
+#: handlers/user_private.py:170
+msgid "Салон не выбран."
+msgstr "No salon selected."
+
+#: handlers/user_private.py:177
+msgid "Товар добавлен в корзину."
+msgstr "Item added to cart."
+
+#: handlers/user_private.py:201
+msgid "Салон выбран"
+msgstr "Salon selected"
+
+#: handlers/user_private.py:221
+msgid "Салон не выбран. Перезапустите бота командой /start."
+msgstr "No salon selected. Restart the bot with the command /start."
+
+#: handlers/user_private.py:247
+msgid "Салон не выбран. Перезапустите /start."
+msgstr "No salon selected. Restart with /start."
+
+#: handlers/user_private.py:252
+msgid "Салон не найден. Перезапустите /start."
+msgstr "Salon not found. Restart with /start."
+
+#: handlers/user_private.py:259
+msgid "Товар не найден!"
+msgstr "Item not found!"
+
+#: handlers/user_private.py:267
+msgid "Товар не найден в этой категории!"
+msgstr "Item not found in this category!"
+
+#: handlers/user_private.py:290
+msgid "Ошибка при загрузке товара."
+msgstr "Error while loading the item."

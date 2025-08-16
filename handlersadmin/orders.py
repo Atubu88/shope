@@ -21,27 +21,38 @@ orders_router.callback_query.filter(IsAdmin())
 CUSTOMER_STATUS_MSGS = {
     "IN_PROGRESS": "Ваш заказ #{} принят и готовится. 🧑‍🍳",
     "DONE": "Ваш заказ #{} выполнен. Приятного аппетита! 😋",
-    "CANCELLED": "Ваш заказ #{} отменён. Если это ошибка — напишите нам, поможем! 🙏",
+    "CANCELLED": "Ваш заказ #{} отменён. Если это ошибка — напишите нам, поможем! ",
 }
 
 def build_customer_message(order, new_status: str) -> str:
-    # Сформируем удобный текст с временем и суммой
+    # Заголовок по новому статусу
+    header = CUSTOMER_STATUS_MSGS.get(new_status, "Статус заказа #{} обновлён.").format(order.id)
+
+    # Время и сумма
     salon_obj = getattr(order.user_salon, "salon", None)
     currency_code = getattr(salon_obj, "currency", "RUB")
     local_dt = to_timezone(order.created, getattr(salon_obj, "timezone", None))
-    money = f"{order.total:.0f}{get_currency_symbol(currency_code)}"
-    header = CUSTOMER_STATUS_MSGS.get(new_status, "Статус заказа #{} обновлён.").format(order.id)
+    total_text = f"{order.total:.0f}{get_currency_symbol(currency_code)}"
+
+    # Все позиции заказа
+    items = getattr(order, "items", []) or []
+    lines = []
+    for it in items:
+        product = getattr(it, "product", None)
+        name = getattr(product, "name", f"Товар #{getattr(it, 'product_id', '?')}")
+        qty = getattr(it, "quantity", 1)
+        lines.append(f"🍕 {name} × {qty}")
+
+    items_block = ("\n" + "\n".join(lines)) if lines else ""
+
+    # Итоговый текст
     details = (
         f"\n\n⏰ {local_dt:%d.%m %H:%M}"
-        f"\n🧾 Сумма: {money}"
+        f"\n🧾 Сумма: {total_text}"
+        f"{items_block}"
     )
-    # Опционально покажем первый товар, если есть
-    try:
-        item = order.items[0]
-        details += f"\n🍕 {item.product.name} × {item.quantity}"
-    except Exception:
-        pass
     return header + details
+
 
 async def notify_customer_status_change(bot, order, new_status: str):
     chat_id = getattr(getattr(order.user_salon, "user", None), "user_id", None)
@@ -188,7 +199,11 @@ def order_detail_kb(order_id: int) -> InlineKeyboardMarkup:
 
 
 @orders_router.callback_query(F.data.regexp(r"^order_(\d+)$"))
-async def show_order_detail(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+async def show_order_detail(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession,
+):
     # 1) извлекаем id заказа и salon_id из состояния
     order_id = int(callback.data.split("_")[-1])
     data = await state.get_data()
@@ -201,29 +216,54 @@ async def show_order_detail(callback: CallbackQuery, state: FSMContext, session:
     if not order:
         return await callback.answer("Заказ не найден", show_alert=True)
 
-    # 3) формируем текст безопасно
+    # 3) вычисляем служебные поля
     salon_obj = getattr(order.user_salon, "salon", None)
     currency_code = getattr(salon_obj, "currency", "RUB")
     local_dt = to_timezone(order.created, getattr(salon_obj, "timezone", None))
-    status_ru = STATUS_LABELS_RU.get(order.status, order.status)
+    status_label = STATUS_LABELS_RU.get(order.status, order.status)
 
-    first_item = order.items[0] if getattr(order, "items", None) else None
-    item_line = (
-        f"🍕 {first_item.product.name} × {first_item.quantity}\n"
-        if first_item else ""
-    )
+    # 4) собираем блок со всеми позициями заказа
+    items = getattr(order, "items", []) or []
+    lines = []
+    for it in items:
+        product = getattr(it, "product", None)
+        name = getattr(product, "name", f"Товар #{getattr(it, 'product_id', '?')}")
+        qty = getattr(it, "quantity", 1)
+
+        # цена позиции: сначала из item (если хранится снапшот), иначе из продукта
+        price = getattr(it, "price", None)
+        if price is None and product is not None:
+            price = getattr(product, "price", None)
+
+        if price is not None:
+            try:
+                line_total = float(price) * float(qty)
+                lines.append(f"• {name} × {qty} = {line_total:.0f}{get_currency_symbol(currency_code)}")
+            except Exception:
+                lines.append(f"• {name} × {qty}")
+        else:
+            lines.append(f"• {name} × {qty}")
+
+    items_block = ("\n".join(lines) + "\n") if lines else ""
+
+    # 5) формируем текст
+    customer_name = getattr(order.user_salon, "first_name", "") or ""
+    phone = order.phone or "-"
+    address = (order.address or "").strip()
+
+    address_line = f"{address}\n" if address else ""
 
     text = (
         f"Заказ #{order.id}\n"
         f"{local_dt:%d.%m %H:%M}\n"
-        f"{getattr(order.user_salon, 'first_name', '')} / {order.phone or '-'}\n"
-        f"{item_line}"
-        f"{order.address or ''}\n"
-        f"Статус: {status_ru}\n"
+        f"{customer_name} / {phone}\n"
+        f"{items_block}"
+        f"{address_line}"
+        f"Статус: {status_label}\n"
         f"Итого: {order.total:.0f}{get_currency_symbol(currency_code)}"
     )
 
-    # 4) редактируем «главное» админское сообщение
+    # 6) редактируем «главное» админское сообщение
     message_id = data.get("main_message_id") or callback.message.message_id
     try:
         await callback.bot.edit_message_text(
@@ -231,16 +271,15 @@ async def show_order_detail(callback: CallbackQuery, state: FSMContext, session:
             message_id=message_id,
             text=text,
             reply_markup=order_action_kb(order.id, order.status),
-            parse_mode="HTML",
         )
     except TelegramBadRequest as e:
-        # если текст/клавиатура не изменились — не падаем
         if "message is not modified" in str(e):
             await callback.answer("Без изменений")
         else:
             raise
 
     await callback.answer()
+
 
 @orders_router.callback_query(F.data.regexp(r"^(accept|done|cancel)_(\d+)$"))
 async def change_order_status(callback: CallbackQuery, session: AsyncSession, state: FSMContext):

@@ -377,6 +377,15 @@ async def orm_get_user(
     return result.scalars().first()
 
 
+async def orm_set_user_language(
+    session: AsyncSession, user_id: int, language: str
+) -> None:
+    await session.execute(
+        update(User).where(User.user_id == user_id).values(language=language)
+    )
+    await session.commit()
+
+
 async def orm_get_user_salons(session: AsyncSession, user_id: int) -> list[UserSalon]:
     stmt = (
         select(UserSalon)

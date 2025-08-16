@@ -505,16 +505,25 @@ async def confirm_order(callback: CallbackQuery,
 
 @order_router.callback_query(F.data == "back_to_cart")
 async def back_to_cart(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
-    await state.clear()                     # ① очистили сразу
+    # 1) пробуем взять салон из состояния
+    data = await state.get_data()
+    user_salon_id = data.get("user_salon_id")
 
-    user_id = callback.from_user.id
-    user_salons = await orm_get_user_salons(session, user_id)
-    if len(user_salons) != 1:
-        await callback.message.answer("Не удалось определить салон. Пожалуйста, выберите салон.")
-        await callback.answer()
-        return
+    # 2) если нет — пробуем определить по БД
+    if not user_salon_id:
+        user_id = callback.from_user.id
+        user_salons = await orm_get_user_salons(session, user_id)
+        if len(user_salons) != 1:
+            await callback.message.answer("Не удалось определить салон. Пожалуйста, выберите салон.")
+            await callback.answer()
+            return
+        user_salon_id = user_salons[0].id
 
-    user_salon_id = user_salons[0].id
+    # 3) очищаем состояние и возвращаем нужный контекст
+    await state.clear()
+    await state.update_data(user_salon_id=user_salon_id)
+
+    # 4) рендерим корзину/меню
     image, kbds = await get_menu_content(
         session=session,
         level=3,
@@ -523,17 +532,23 @@ async def back_to_cart(callback: CallbackQuery, state: FSMContext, session: Asyn
         user_salon_id=user_salon_id,
     )
 
+    # 5) пробуем удалить старое сообщение (если можно)
     try:
         await callback.message.delete()
     except Exception:
         pass
 
+    # 6) отправляем новый экран
     await callback.message.answer_photo(
         photo=image.media,
         caption=image.caption,
         reply_markup=kbds,
-        parse_mode="HTML"
+        parse_mode="HTML",  # можно убрать, если parse_mode задан в Bot по умолчанию
     )
+
+    # 7) погасить "часики" у пользователя
+    await callback.answer()
+
 
 
 

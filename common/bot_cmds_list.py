@@ -5,6 +5,7 @@ from aiogram.types import BotCommand, BotCommandScopeChat
 # Команды для обычных пользователей
 user_commands = [
     BotCommand(command="start", description="Запустить бота"),
+    BotCommand(command="language", description="Выбор языка"),
 ]
 
 

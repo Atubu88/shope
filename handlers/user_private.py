@@ -1,7 +1,12 @@
 from aiogram import F, types, Router
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
+
+from aiogram.utils.i18n import gettext as _, I18n
+#from utils.i18n import _
+
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +19,9 @@ from database.orm_query import (
     orm_get_user_salons,
     orm_get_salon_by_slug,
     orm_get_product,
-    orm_get_products, orm_get_user,
+    orm_get_products,
+    orm_get_user,
+    orm_set_user_language,
 )
 
 from filters.chat_types import ChatTypeFilter
@@ -28,8 +35,30 @@ user_private_router = Router()
 user_private_router.message.filter(ChatTypeFilter(["private"]))
 
 
+@user_private_router.message(Command("language"))
+async def cmd_language(message: types.Message):
+    kb = InlineKeyboardBuilder()
+    kb.button(text=_("Русский"), callback_data="setlang_ru")
+    kb.button(text=_("English"), callback_data="setlang_en")
+    kb.adjust(2)
+    await message.answer(_("Выберите язык"), reply_markup=kb.as_markup())
+
+
+@user_private_router.callback_query(F.data.startswith("setlang_"))
+async def set_language(
+    callback: types.CallbackQuery,
+    session: AsyncSession,
+    i18n: I18n,
+):
+    lang = callback.data.split("_", 1)[1]
+    await orm_set_user_language(session, callback.from_user.id, lang)
+    i18n.ctx_locale.set(lang)
+    await callback.message.edit_text(_("Язык обновлён"))
+    await callback.answer()
+
+
 @user_private_router.message(CommandStart(), ~InviteFilter())
-async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSession):
+async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSession, i18n: I18n):
     await state.clear()
 
     args = message.text.split()
@@ -39,7 +68,10 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
     result = await session.execute(select(User).where(User.user_id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        user = User(user_id=user_id)
+        user = User(
+            user_id=user_id,
+            language=message.from_user.language_code or "ru",
+        )
         session.add(user)
         await session.commit()
 
@@ -53,16 +85,19 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
             user.is_super_admin = True
             await session.commit()
             await message.answer(
-                "✅ Вы стали суперадмином.\nСоздайте первый салон командой /create_salon"
+                _(
+                    "✅ Вы стали суперадмином.\nСоздайте первый салон командой /create_sалon"
+                )
             )
         else:
-            await message.answer("Салонов пока нет. Обратитесь к администратору.")
+            await message.answer(_("Салонов пока нет. Обратитесь к администратору."))
         return
 
     salon = None
     if param:
         if "-" in param:
-            slug, _ = param.rsplit("-", 1)
+            slug, suffix = param.rsplit("-", 1)  # или second, tail, whatever
+
             salon = await orm_get_salon_by_slug(session, slug)
         elif param.isdigit():
             salon = await session.get(Salon, int(param))
@@ -79,7 +114,8 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
         )
         await state.update_data(user_salon_id=user_salon.id)
         await message.answer(
-            f"Вы находитесь в салоне: <b>{salon.name}</b>", parse_mode="HTML"
+            _("Вы находитесь в салоне: <b>{name}</b>").format(name=salon.name),
+            parse_mode="HTML",
         )
         media, reply_markup = await get_menu_content(
             session, level=0, menu_name="main", user_salon_id=user_salon.id
@@ -93,9 +129,9 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
     # --- 0 салонов — сообщаем, что доступа пока нет ---------------------------
     if not user_salons:
         await message.answer(
-            "У вас пока нет салонов. "
-            "Попросите администратора прислать пригласительную ссылку "
-            "или создайте собственный салон по инвайту."
+            _(
+                "У вас пока нет салонов. Попросите администратора прислать пригласительную ссылку или создайте собственный салон по инвайту."
+            )
         )
         return
 
@@ -104,7 +140,10 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
         us = user_salons[0]
         await state.update_data(user_salon_id=us.id)
         await message.answer(
-            f"Вы находитесь в салоне: <b>{us.salon.name}</b>", parse_mode="HTML"
+            _("Вы находитесь в салоне: <b>{name}</b>").format(
+                name=us.salon.name
+            ),
+            parse_mode="HTML",
         )
         media, reply_markup = await get_menu_content(
             session, level=0, menu_name="main", user_salon_id=us.id
@@ -114,8 +153,8 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
 
     # --- >1 салонов — даём пользователю выбрать среди своих -------------------
     await message.answer(
-        "Выберите салон:",
-        reply_markup=get_salon_btns([us.salon for us in user_salons])
+        _("Выберите салон:"),
+        reply_markup=get_salon_btns([us.salon for us in user_salons]),
     )
 
 
@@ -128,14 +167,14 @@ async def add_to_cart(
     data = await state.get_data()
     user_salon_id = data.get("user_salon_id")
     if not user_salon_id:
-        await callback.answer("Салон не выбран.")
+        await callback.answer(_("Салон не выбран."))
         return
     await orm_add_to_cart(
         session,
         user_salon_id=user_salon_id,
         product_id=callback_data.product_id,
     )
-    await callback.answer("Товар добавлен в корзину.")
+    await callback.answer(_("Товар добавлен в корзину."))
 
 
 @user_private_router.callback_query(SalonCallBack.filter())
@@ -159,7 +198,7 @@ async def choose_salon(
         menu_name="main",
         user_salon_id=user_salon.id,
     )
-    await callback.message.edit_text("Салон выбран")
+    await callback.message.edit_text(_("Салон выбран"))
     await callback.message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
 
 
@@ -178,7 +217,9 @@ async def user_menu(
     user_salon_id = data.get("user_salon_id")
 
     if not user_salon_id:
-        await callback.answer("Салон не выбран. Перезапустите бота командой /start.")
+        await callback.answer(
+            _("Салон не выбран. Перезапустите бота командой /start.")
+        )
         return
 
     media, reply_markup = await get_menu_content(
@@ -203,19 +244,19 @@ async def show_product(message: Message, session: AsyncSession, state: FSMContex
         data = await state.get_data()
         user_salon_id = data.get("user_salon_id")
         if not user_salon_id:
-            await message.answer("Салон не выбран. Перезапустите /start.")
+            await message.answer(_("Салон не выбран. Перезапустите /start."))
             return
 
         user_salon = await session.get(UserSalon, user_salon_id)
         if not user_salon:
-            await message.answer("Салон не найден. Перезапустите /start.")
+            await message.answer(_("Салон не найден. Перезапустите /start."))
             return
 
         salon_id = user_salon.salon_id
 
         product = await orm_get_product(session, product_id, salon_id=salon_id)
         if not product:
-            await message.answer("Товар не найден!")
+            await message.answer(_("Товар не найден!"))
             return
 
         products_in_cat = await orm_get_products(
@@ -223,7 +264,7 @@ async def show_product(message: Message, session: AsyncSession, state: FSMContex
         )
         product_ids = [p.id for p in products_in_cat]
         if product_id not in product_ids:
-            await message.answer("Товар не найден в этой категории!")
+            await message.answer(_("Товар не найден в этой категории!"))
             return
 
         idx = product_ids.index(product_id)
@@ -246,5 +287,4 @@ async def show_product(message: Message, session: AsyncSession, state: FSMContex
 
     except Exception as e:
         print(f"[show_product] Ошибка: {e}")
-        await message.answer("Ошибка при загрузке товара.")
-
+        await message.answer(_("Ошибка при загрузке товара."))
