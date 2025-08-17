@@ -57,3 +57,9 @@ images_for_info_pages = {
     "catalog": "banners/catalog.jpg",
     "cart": "banners/cart.jpg",
 }
+
+# ``description_for_info_pages`` contains placeholder entries for banner
+# descriptions. ``None`` values mean that the application will use
+# ``get_default_banner_description`` until an administrator sets a custom
+# description in the database.
+description_for_info_pages = {key: None for key in images_for_info_pages}

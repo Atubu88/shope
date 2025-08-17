@@ -138,12 +138,13 @@ async def orm_add_banner_description(
     salon_id: int,
     images: dict | None = None,
 ):
-    """Create or update banners with default descriptions and images.
+    """Create or update banner records with optional descriptions and images.
 
-    ``data`` contains banner descriptions keyed by page name. ``images`` is an
-    optional mapping of page names to image paths used as placeholders for a
-    new salon. When a banner already exists, its description is updated and the
-    image is refreshed only when provided in ``images``.
+    ``data`` maps page names to descriptions. Passing ``None`` as a description
+    means that the banner should rely on ``get_default_banner_description``
+    until an admin provides custom text. Existing descriptions are preserved
+    when ``None`` is supplied so that manual edits are not overwritten. The
+    ``images`` mapping allows providing default images for new salons.
     """
 
     for name, description in data.items():
@@ -154,14 +155,17 @@ async def orm_add_banner_description(
         image = images.get(name) if images else None
 
         if banner:
-            values = {"description": description}
+            values = {}
+            if description is not None:
+                values["description"] = description
             if image is not None:
                 values["image"] = image
-            await session.execute(
-                update(Banner)
-                .where(Banner.name == name, Banner.salon_id == salon_id)
-                .values(**values)
-            )
+            if values:
+                await session.execute(
+                    update(Banner)
+                    .where(Banner.name == name, Banner.salon_id == salon_id)
+                    .values(**values)
+                )
         else:
             session.add(
                 Banner(
