@@ -1,40 +1,53 @@
 from aiogram.types import Message
 from aiogram.utils.formatting import Bold, as_list, as_marked_section
-from aiogram.utils.i18n import lazy_gettext as _
+from aiogram.utils.i18n import gettext as _  # Используем обычный gettext
 
-description_for_info_pages = {
-    "main": _("Добро пожаловать!"),
-    "about": _("Описание заведения.\nРежим работы - круглосуточно."),
-    "payment": as_marked_section(
-        Bold(_("Варианты оплаты:")),
-        _("Картой в боте"),
-        _("При получении карта/кеш"),
-        _("В заведении"),
-        marker="✅ ",
-    ),  # ← без .as_html()
-    "shipping": as_list(
-        as_marked_section(
-            Bold(_("Варианты доставки/заказа:")),
-            _("Курьер"),
-            _("Самовынос (сейчас прибегу заберу)"),
-            _("Покушаю у Вас (сейчас прибегу)"),
+
+def get_description_for_info_pages(page_key: str):
+    """Возвращает переведённый текст по ключу страницы."""
+    mapping = {
+        "main": _("Добро пожаловать!"),
+        "about": _("Информация о компании.\nРежим работы: ежедневно."),
+        "payment": as_marked_section(
+            Bold(_("Способы оплаты:")),
+            _("Онлайн-картой в боте"),
+            _("Картой при получении"),
+            _("Наличными при получении"),
             marker="✅ ",
         ),
-        as_marked_section(Bold(_("Нельзя:")), _("Почта"), marker="❌ "),
-        sep="\n----------------------\n",
-    ),  # ← без .as_html()
-    "catalog": _("Категории:"),
-    "cart": _("В корзине ничего нет!"),
-}
+        "shipping": as_list(
+            as_marked_section(
+                Bold(_("Способы получения заказа:")),
+                _("Курьерская доставка"),
+                _("Самовывоз из точки продаж"),
+                marker="✅ ",
+            ),
+            sep="\n----------------------\n",
+        ),
+        "catalog": _("Каталог товаров и услуг:"),
+        "cart": _("В корзине пока нет товаров."),
+    }
 
-# Использование в обработчике, когда i18n уже подключён:
+    return mapping.get(page_key, "")
+
+
 async def show_info(page_key: str, message: Message):
-    data = description_for_info_pages[page_key]
+    """Отправляет информацию по указанному ключу пользователю."""
+    data = get_description_for_info_pages(page_key)
     if hasattr(data, "as_html"):
         text = data.as_html()
     else:
         text = str(data)
     await message.answer(text)
+
+
+def get_default_banner_description(page_key: str) -> str:
+    """Возвращает описание для баннера с учётом i18n."""
+    data = get_description_for_info_pages(page_key)
+    if hasattr(data, "as_html"):
+        return data.as_html()
+    return str(data)
+
 
 images_for_info_pages = {
     "main": "banners/main.jpg",
