@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-08-16 20:48+0200\n"
+"POT-Creation-Date: 2025-08-17 12:16+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,61 +17,61 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.17.0\n"
 
-#: common/texts_for_db.py:7
+#: common/texts_for_db.py:6
 msgid "Добро пожаловать!"
 msgstr ""
 
-#: common/texts_for_db.py:8
+#: common/texts_for_db.py:7
 msgid ""
 "Описание заведения.\n"
 "Режим работы - круглосуточно."
 msgstr ""
 
-#: common/texts_for_db.py:10
+#: common/texts_for_db.py:9
 msgid "Варианты оплаты:"
 msgstr ""
 
-#: common/texts_for_db.py:11
+#: common/texts_for_db.py:10
 msgid "Картой в боте"
 msgstr ""
 
-#: common/texts_for_db.py:12
+#: common/texts_for_db.py:11
 msgid "При получении карта/кеш"
 msgstr ""
 
-#: common/texts_for_db.py:13
+#: common/texts_for_db.py:12
 msgid "В заведении"
 msgstr ""
 
-#: common/texts_for_db.py:18
+#: common/texts_for_db.py:17
 msgid "Варианты доставки/заказа:"
 msgstr ""
 
-#: common/texts_for_db.py:19
+#: common/texts_for_db.py:18
 msgid "Курьер"
 msgstr ""
 
-#: common/texts_for_db.py:20
+#: common/texts_for_db.py:19
 msgid "Самовынос (сейчас прибегу заберу)"
 msgstr ""
 
-#: common/texts_for_db.py:21
+#: common/texts_for_db.py:20
 msgid "Покушаю у Вас (сейчас прибегу)"
 msgstr ""
 
-#: common/texts_for_db.py:24
+#: common/texts_for_db.py:23
 msgid "Нельзя:"
 msgstr ""
 
-#: common/texts_for_db.py:24
+#: common/texts_for_db.py:23
 msgid "Почта"
 msgstr ""
 
-#: common/texts_for_db.py:27
+#: common/texts_for_db.py:26
 msgid "Категории:"
 msgstr ""
 
-#: common/texts_for_db.py:28
+#: common/texts_for_db.py:27
 msgid "В корзине ничего нет!"
 msgstr ""
 
@@ -79,80 +79,80 @@ msgstr ""
 msgid "Корзина пуста"
 msgstr ""
 
-#: handlers/user_private.py:40
+#: handlers/user_private.py:48
 msgid "Русский"
 msgstr ""
 
-#: handlers/user_private.py:41
+#: handlers/user_private.py:49
 msgid "English"
 msgstr ""
 
-#: handlers/user_private.py:43
+#: handlers/user_private.py:51
 msgid "Выберите язык"
 msgstr ""
 
-#: handlers/user_private.py:55
+#: handlers/user_private.py:63
 msgid "Язык обновлён"
 msgstr ""
 
-#: handlers/user_private.py:92
+#: handlers/user_private.py:100
 msgid ""
 "✅ Вы стали суперадмином.\n"
 "Создайте первый салон командой /create_sалon"
 msgstr ""
 
-#: handlers/user_private.py:96
+#: handlers/user_private.py:104
 msgid "Салонов пока нет. Обратитесь к администратору."
 msgstr ""
 
-#: handlers/user_private.py:120 handlers/user_private.py:146
+#: handlers/user_private.py:128 handlers/user_private.py:154
 #, python-brace-format
 msgid "Вы находитесь в салоне: <b>{name}</b>"
 msgstr ""
 
-#: handlers/user_private.py:136
+#: handlers/user_private.py:144
 msgid ""
 "У вас пока нет салонов. Попросите администратора прислать пригласительную"
 " ссылку или создайте собственный салон по инвайту."
 msgstr ""
 
-#: handlers/user_private.py:159
+#: handlers/user_private.py:167
 msgid "Выберите салон:"
 msgstr ""
 
-#: handlers/user_private.py:173
+#: handlers/user_private.py:181
 msgid "Салон не выбран."
 msgstr ""
 
-#: handlers/user_private.py:180
+#: handlers/user_private.py:188
 msgid "Товар добавлен в корзину."
 msgstr ""
 
-#: handlers/user_private.py:204
+#: handlers/user_private.py:218
 msgid "Салон выбран"
 msgstr ""
 
-#: handlers/user_private.py:224
+#: handlers/user_private.py:239
 msgid "Салон не выбран. Перезапустите бота командой /start."
 msgstr ""
 
-#: handlers/user_private.py:250
+#: handlers/user_private.py:265
 msgid "Салон не выбран. Перезапустите /start."
 msgstr ""
 
-#: handlers/user_private.py:255
+#: handlers/user_private.py:270
 msgid "Салон не найден. Перезапустите /start."
 msgstr ""
 
-#: handlers/user_private.py:262
+#: handlers/user_private.py:277
 msgid "Товар не найден!"
 msgstr ""
 
-#: handlers/user_private.py:270
+#: handlers/user_private.py:285
 msgid "Товар не найден в этой категории!"
 msgstr ""
 
-#: handlers/user_private.py:293
+#: handlers/user_private.py:308
 msgid "Ошибка при загрузке товара."
 msgstr ""
 

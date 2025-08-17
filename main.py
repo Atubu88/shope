@@ -14,7 +14,6 @@ from middlewares.user_locale import UserLocaleMiddleware
 from database.engine import  session_maker
 
 from handlers.user_private import user_private_router
-from handlers.admin_private import admin_router
 from handlersadmin.add_product import add_product_router
 from handlersadmin.products import products_router
 from handlersadmin.categories import categories_router

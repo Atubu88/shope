@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-08-16 20:48+0200\n"
+"POT-Creation-Date: 2025-08-17 12:16+0200\n"
 "PO-Revision-Date: 2025-08-16 15:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.17.0\n"
 
-#: common/texts_for_db.py:7
+#: common/texts_for_db.py:6
 msgid "Добро пожаловать!"
 msgstr "Welcome!"
 
-#: common/texts_for_db.py:8
+#: common/texts_for_db.py:7
 msgid ""
 "Описание заведения.\n"
 "Режим работы - круглосуточно."
@@ -30,51 +30,51 @@ msgstr ""
 "Description of the establishment.\n"
 "Opening hours – 24/7."
 
-#: common/texts_for_db.py:10
+#: common/texts_for_db.py:9
 msgid "Варианты оплаты:"
 msgstr "Payment options:"
 
-#: common/texts_for_db.py:11
+#: common/texts_for_db.py:10
 msgid "Картой в боте"
 msgstr "By card in the bot"
 
-#: common/texts_for_db.py:12
+#: common/texts_for_db.py:11
 msgid "При получении карта/кеш"
 msgstr "Card/cash upon receipt"
 
-#: common/texts_for_db.py:13
+#: common/texts_for_db.py:12
 msgid "В заведении"
 msgstr "At the establishment"
 
-#: common/texts_for_db.py:18
+#: common/texts_for_db.py:17
 msgid "Варианты доставки/заказа:"
 msgstr "Delivery/order options:"
 
-#: common/texts_for_db.py:19
+#: common/texts_for_db.py:18
 msgid "Курьер"
 msgstr "Courier"
 
-#: common/texts_for_db.py:20
+#: common/texts_for_db.py:19
 msgid "Самовынос (сейчас прибегу заберу)"
 msgstr "Self-pickup (I'll come and get it)"
 
-#: common/texts_for_db.py:21
+#: common/texts_for_db.py:20
 msgid "Покушаю у Вас (сейчас прибегу)"
 msgstr "I'll dine in (coming over now)"
 
-#: common/texts_for_db.py:24
+#: common/texts_for_db.py:23
 msgid "Нельзя:"
 msgstr "Not allowed:"
 
-#: common/texts_for_db.py:24
+#: common/texts_for_db.py:23
 msgid "Почта"
 msgstr "Mail"
 
-#: common/texts_for_db.py:27
+#: common/texts_for_db.py:26
 msgid "Категории:"
 msgstr "Categories:"
 
-#: common/texts_for_db.py:28
+#: common/texts_for_db.py:27
 msgid "В корзине ничего нет!"
 msgstr "Your cart is empty!"
 
@@ -82,23 +82,23 @@ msgstr "Your cart is empty!"
 msgid "Корзина пуста"
 msgstr "Cart is empty"
 
-#: handlers/user_private.py:40
+#: handlers/user_private.py:48
 msgid "Русский"
 msgstr "Russian"
 
-#: handlers/user_private.py:41
+#: handlers/user_private.py:49
 msgid "English"
 msgstr "English"
 
-#: handlers/user_private.py:43
+#: handlers/user_private.py:51
 msgid "Выберите язык"
 msgstr "Choose a language"
 
-#: handlers/user_private.py:55
+#: handlers/user_private.py:63
 msgid "Язык обновлён"
 msgstr "Language updated"
 
-#: handlers/user_private.py:92
+#: handlers/user_private.py:100
 #, fuzzy
 msgid ""
 "✅ Вы стали суперадмином.\n"
@@ -107,16 +107,16 @@ msgstr ""
 "✅ You are now a super admin.\n"
 "Create the first salon with the command /create_salon"
 
-#: handlers/user_private.py:96
+#: handlers/user_private.py:104
 msgid "Салонов пока нет. Обратитесь к администратору."
 msgstr "There are no salons yet. Please contact the administrator."
 
-#: handlers/user_private.py:120 handlers/user_private.py:146
+#: handlers/user_private.py:128 handlers/user_private.py:154
 #, python-brace-format
 msgid "Вы находитесь в салоне: <b>{name}</b>"
 msgstr "You are in the salon: <b>{name}</b>"
 
-#: handlers/user_private.py:136
+#: handlers/user_private.py:144
 msgid ""
 "У вас пока нет салонов. Попросите администратора прислать пригласительную"
 " ссылку или создайте собственный салон по инвайту."
@@ -124,43 +124,43 @@ msgstr ""
 "You don’t have any salons yet. Ask an administrator for an invitation "
 "link or create your own salon by invite."
 
-#: handlers/user_private.py:159
+#: handlers/user_private.py:167
 msgid "Выберите салон:"
 msgstr "Choose a salon:"
 
-#: handlers/user_private.py:173
+#: handlers/user_private.py:181
 msgid "Салон не выбран."
 msgstr "No salon selected."
 
-#: handlers/user_private.py:180
+#: handlers/user_private.py:188
 msgid "Товар добавлен в корзину."
 msgstr "Item added to cart."
 
-#: handlers/user_private.py:204
+#: handlers/user_private.py:218
 msgid "Салон выбран"
 msgstr "Salon selected"
 
-#: handlers/user_private.py:224
+#: handlers/user_private.py:239
 msgid "Салон не выбран. Перезапустите бота командой /start."
 msgstr "No salon selected. Restart the bot with the command /start."
 
-#: handlers/user_private.py:250
+#: handlers/user_private.py:265
 msgid "Салон не выбран. Перезапустите /start."
 msgstr "No salon selected. Restart with /start."
 
-#: handlers/user_private.py:255
+#: handlers/user_private.py:270
 msgid "Салон не найден. Перезапустите /start."
 msgstr "Salon not found. Restart with /start."
 
-#: handlers/user_private.py:262
+#: handlers/user_private.py:277
 msgid "Товар не найден!"
 msgstr "Item not found!"
 
-#: handlers/user_private.py:270
+#: handlers/user_private.py:285
 msgid "Товар не найден в этой категории!"
 msgstr "Item not found in this category!"
 
-#: handlers/user_private.py:293
+#: handlers/user_private.py:308
 msgid "Ошибка при загрузке товара."
 msgstr "Error while loading the item."
 
