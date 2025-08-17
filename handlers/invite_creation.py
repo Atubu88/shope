@@ -15,8 +15,11 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton,
 )
+from aiogram.utils.i18n import gettext as _, I18n
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from database.models import User
 
 from database.orm_query import (
     orm_create_salon,
@@ -46,6 +49,7 @@ class InviteFilter(Filter):
         return payload.lower().startswith(self.prefix.lower())
 
 class AddSalon(StatesGroup):
+    language = State()
     name = State()
     slug = State()
     currency = State()
@@ -101,13 +105,62 @@ def contact_keyboard() -> ReplyKeyboardMarkup:
 
 # ================== СТАРТ ПО ИНВАЙТУ (ТОЛЬКО invite_...) ==================
 @invite_creation_router.message(CommandStart(), InviteFilter())  # prefix по умолчанию = "invite_"
-async def start_via_invite(message: types.Message, state: FSMContext) -> None:
+async def start_via_invite(
+    message: types.Message,
+    state: FSMContext,
+    session: AsyncSession,
+    i18n: I18n,
+) -> None:
     await state.clear()  # гасим висящие стейты
-    # payload = message.text.split(maxsplit=1)[1]  # если нужен
-    await message.answer("Введите название салона:", reply_markup=ReplyKeyboardRemove())
-    await state.set_state(AddSalon.name)
+    user_id = message.from_user.id
+    user = await session.get(User, user_id)
+    if user:
+        if user.language:
+            i18n.ctx_locale.set(user.language)
+        await message.answer(
+            _("Введите название салона:"), reply_markup=ReplyKeyboardRemove()
+        )
+        await state.set_state(AddSalon.name)
+        return
+
+    kb = InlineKeyboardBuilder()
+    kb.button(text=_("Русский"), callback_data="setlang_ru")
+    kb.button(text=_("English"), callback_data="setlang_en")
+    kb.adjust(2)
+    await message.answer(_("Выберите язык"), reply_markup=kb.as_markup())
+    await state.set_state(AddSalon.language)
 
 # ================== FSM ==================
+@invite_creation_router.callback_query(AddSalon.language, F.data.startswith("setlang_"))
+async def invite_set_language(
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession,
+    i18n: I18n,
+) -> None:
+    lang = callback.data.split("_", 1)[1]
+    session.add(User(user_id=callback.from_user.id, language=lang))
+    await session.commit()
+    i18n.ctx_locale.set(lang)
+    await callback.message.delete()
+    await callback.message.answer(
+        _("Введите название салона:"), reply_markup=ReplyKeyboardRemove()
+    )
+    await state.set_state(AddSalon.name)
+    await callback.answer()
+
+@invite_creation_router.callback_query(AddSalon.language)
+async def invite_set_language_invalid(callback: types.CallbackQuery) -> None:
+    await callback.answer("Выберите язык", show_alert=True)
+
+@invite_creation_router.message(AddSalon.language)
+async def invite_language_message_invalid(message: types.Message) -> None:
+    kb = InlineKeyboardBuilder()
+    kb.button(text="Русский", callback_data="setlang_ru")
+    kb.button(text="English", callback_data="setlang_en")
+    kb.adjust(2)
+    await message.answer(_("Выберите язык"), reply_markup=kb.as_markup())
+
 @invite_creation_router.message(AddSalon.name, F.text)
 async def salon_name(message: types.Message, state: FSMContext) -> None:
     name = message.text.strip()
