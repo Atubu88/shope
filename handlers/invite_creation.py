@@ -15,7 +15,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton,
 )
-from aiogram.utils.i18n import gettext as _, I18n
+from aiogram.utils.i18n import I18n
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +28,7 @@ from database.orm_query import (
 )
 from filters.chat_types import ChatTypeFilter
 from utils.slug import generate_unique_slug
-from utils.i18n import i18n, _
+from utils.i18n import _
 # Роутер для инвайтов — подключай в main.py до общего старт-хендлера
 invite_creation_router = Router()
 invite_creation_router.message.filter(ChatTypeFilter(["private"]))  # только личка для сообщений
@@ -109,6 +109,7 @@ async def start_via_invite(
     message: types.Message,
     state: FSMContext,
     session: AsyncSession,
+    i18n: I18n,
 ) -> None:
     await state.clear()  # гасим висящие стейты
     user_id = message.from_user.id

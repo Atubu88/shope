@@ -1,5 +1,5 @@
 from aiogram import F, types, Router
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -55,7 +55,7 @@ async def cmd_language(message: types.Message, session: AsyncSession):
     await message.answer(_("Выберите язык"), reply_markup=kb.as_markup())
 
 
-@user_private_router.callback_query(F.data.startswith("setlang_"))
+@user_private_router.callback_query(StateFilter(None), F.data.startswith("setlang_"))
 async def set_language(callback: types.CallbackQuery, session: AsyncSession):
     lang = callback.data.split("_", 1)[1]
     await orm_set_user_language(session, callback.from_user.id, lang)
