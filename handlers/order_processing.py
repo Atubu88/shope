@@ -61,10 +61,9 @@ def confirm_address_kb():
         [InlineKeyboardButton(text=_("✏️ Ввести вручную"), callback_data="address_manual")]
     ])
 
-BACK_BUTTON_TEXTS = {
-    i18n.gettext("⬅️ Назад", locale="ru"),
-    i18n.gettext("⬅️ Назад", locale="en"),
-}
+
+def is_back_button(message: types.Message) -> bool:
+    return message.text == _("⬅️ Назад")
 
 def phone_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
@@ -197,7 +196,7 @@ async def receive_location(message: types.Message, state: FSMContext, session: A
     await state.update_data(confirm_addr_msg_id=confirm_msg.message_id)
     await state.set_state(OrderStates.confirming_address)
 
-@order_router.message(OrderStates.entering_address, F.text.in_(BACK_BUTTON_TEXTS))
+@order_router.message(OrderStates.entering_address, is_back_button)
 async def back_to_delivery_msg(message: types.Message,
                                state: FSMContext,
                                session: AsyncSession):
@@ -335,7 +334,7 @@ async def address_manual(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer(_("Пожалуйста, введите адрес вручную:"))
 
 # ─── «⬅️ Назад» со стадии ввода телефона ──────────────────────────────
-@order_router.message(OrderStates.entering_phone, F.text.in_(BACK_BUTTON_TEXTS))
+@order_router.message(OrderStates.entering_phone, is_back_button)
 async def phone_back(message: types.Message,
                      state: FSMContext,
                      session: AsyncSession):
