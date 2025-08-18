@@ -2,6 +2,8 @@ from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from utils.i18n import _
+
 
 
 
@@ -20,11 +22,11 @@ class SalonCallBack(CallbackData, prefix="salon"):
 def get_user_main_btns(*, level: int, sizes: tuple[int] = (2,)):
     keyboard = InlineKeyboardBuilder()
     btns = {
-        "Товары 🛍️": "catalog",
-        "Корзина 🛒": "cart",
-        "О нас ℹ️": "about",
-        "Оплата 💰": "payment",
-        "Доставка ⛵": "shipping",
+        _("Товары 🛍️"): "catalog",
+        _("Корзина 🛒"): "cart",
+        _("О нас ℹ️"): "about",
+        _("Оплата 💰"): "payment",
+        _("Доставка ⛵"): "shipping",
     }
     for text, menu_name in btns.items():
         if menu_name == 'catalog':
@@ -55,10 +57,18 @@ def get_salon_btns(salons):
 def get_user_catalog_btns(*, level: int, categories: list, sizes: tuple[int] = (2,)):
     keyboard = InlineKeyboardBuilder()
 
-    keyboard.add(InlineKeyboardButton(text='Назад',
-                                      callback_data=MenuCallBack(level=level - 1, menu_name='main').pack()))
-    keyboard.add(InlineKeyboardButton(text='Корзина 🛒',
-                                      callback_data=MenuCallBack(level=3, menu_name='cart').pack()))
+    keyboard.add(
+        InlineKeyboardButton(
+            text=_('Назад'),
+            callback_data=MenuCallBack(level=level - 1, menu_name='main').pack()
+        )
+    )
+    keyboard.add(
+        InlineKeyboardButton(
+            text=_('Корзина 🛒'),
+            callback_data=MenuCallBack(level=3, menu_name='cart').pack()
+        )
+    )
 
     for c in categories:
         #keyboard.add(InlineKeyboardButton(text=c.name,
@@ -84,13 +94,24 @@ def get_products_btns(
 ):
     keyboard = InlineKeyboardBuilder()
 
-    keyboard.add(InlineKeyboardButton(text='Назад',
-                                      callback_data=MenuCallBack(level=level - 1, menu_name='catalog').pack()))
-    keyboard.add(InlineKeyboardButton(text='Корзина 🛒',
-                                      callback_data=MenuCallBack(level=3, menu_name='cart').pack()))
-    keyboard.add(InlineKeyboardButton(text='Купить 💵',
-                                      callback_data=MenuCallBack(level=level, menu_name='add_to_cart',
-                                                                 product_id=product_id).pack()))
+    keyboard.add(
+        InlineKeyboardButton(
+            text=_('Назад'),
+            callback_data=MenuCallBack(level=level - 1, menu_name='catalog').pack()
+        )
+    )
+    keyboard.add(
+        InlineKeyboardButton(
+            text=_('Корзина 🛒'),
+            callback_data=MenuCallBack(level=3, menu_name='cart').pack()
+        )
+    )
+    keyboard.add(
+        InlineKeyboardButton(
+            text=_('Купить 💵'),
+            callback_data=MenuCallBack(level=level, menu_name='add_to_cart', product_id=product_id).pack()
+        )
+    )
 
     keyboard.adjust(*sizes)
 
@@ -125,15 +146,28 @@ def get_user_cart(
 ):
     keyboard = InlineKeyboardBuilder()
     if page:
-        keyboard.add(InlineKeyboardButton(text='Удалить',
-                                          callback_data=MenuCallBack(level=level, menu_name='delete',
-                                                                     product_id=product_id, page=page).pack()))
-        keyboard.add(InlineKeyboardButton(text='-1',
-                                          callback_data=MenuCallBack(level=level, menu_name='decrement',
-                                                                     product_id=product_id, page=page).pack()))
-        keyboard.add(InlineKeyboardButton(text='+1',
-                                          callback_data=MenuCallBack(level=level, menu_name='increment',
-                                                                     product_id=product_id, page=page).pack()))
+        keyboard.add(
+            InlineKeyboardButton(
+                text=_('Удалить'),
+                callback_data=MenuCallBack(
+                    level=level, menu_name='delete', product_id=product_id, page=page
+                ).pack()
+            )
+        )
+        keyboard.add(
+            InlineKeyboardButton(
+                text="-1",
+                callback_data=MenuCallBack(level=level, menu_name="decrement", product_id=product_id, page=page).pack(),
+
+            )
+        )
+        keyboard.add(
+            InlineKeyboardButton(
+                text="+1",
+                callback_data=MenuCallBack(level=level, menu_name="increment", product_id=product_id, page=page).pack(),
+            )
+
+        )
 
         keyboard.adjust(*sizes)
 
@@ -151,16 +185,23 @@ def get_user_cart(
         keyboard.row(*row)
 
         row2 = [
-            InlineKeyboardButton(text='На главную 🏠',
-                                 callback_data=MenuCallBack(level=0, menu_name='main').pack()),
-            InlineKeyboardButton(text='Заказать',
-                                 callback_data='start_order')  # Изменено на отдельный callback_data
+            InlineKeyboardButton(
+                text=_('На главную 🏠'),
+                callback_data=MenuCallBack(level=0, menu_name='main').pack()
+            ),
+            InlineKeyboardButton(
+                text=_('Заказать'),
+                callback_data='start_order'  # Изменено на отдельный callback_data
+            )
         ]
         return keyboard.row(*row2).as_markup()
     else:
         keyboard.add(
-            InlineKeyboardButton(text='На главную 🏠',
-                                 callback_data=MenuCallBack(level=0, menu_name='main').pack()))
+            InlineKeyboardButton(
+                text=_('На главную 🏠'),
+                callback_data=MenuCallBack(level=0, menu_name='main').pack()
+            )
+        )
 
         return keyboard.adjust(*sizes).as_markup()
 
@@ -183,10 +224,10 @@ def get_callback_btns(*, btns: dict[str, str], sizes: tuple[int] = (2,)) -> Inli
 
 def get_admin_main_kb() -> InlineKeyboardMarkup:
     btns = {
-        "Добавить товар": "admin_add_product",
-        "Ассортимент": "admin_products",
-        "Добавить/Изменить баннер": "admin_banners",
-        "Создать салон": "admin_create_salon",
+        _("Добавить товар"): "admin_add_product",
+        _("Ассортимент"): "admin_products",
+        _("Добавить/Изменить баннер"): "admin_banners",
+         ("Создать салон"): "admin_create_salon",
     }
     return get_callback_btns(btns=btns, sizes=(2,))
 

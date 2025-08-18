@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-08-18 12:52+0200\n"
+"POT-Creation-Date: 2025-08-18 21:20+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -80,21 +80,21 @@ msgstr ""
 msgid "Выберите язык"
 msgstr ""
 
-#: handlers/menu_processing.py:91
+#: handlers/menu_processing.py:110
 msgid "◀ Пред."
 msgstr ""
 
-#: handlers/menu_processing.py:93
+#: handlers/menu_processing.py:112
 msgid "След. ▶"
 msgstr ""
 
-#: handlers/menu_processing.py:114
+#: handlers/menu_processing.py:133
 msgid ""
 "В этой категории пока нет товаров. Попробуйте позже или выберите другую "
 "категорию."
 msgstr ""
 
-#: handlers/menu_processing.py:125
+#: handlers/menu_processing.py:144
 #, python-brace-format
 msgid ""
 "<strong>{name}</strong>\n"
@@ -102,27 +102,158 @@ msgid ""
 "Стоимость: {price}{currency}\n"
 msgstr ""
 
-#: handlers/menu_processing.py:131
+#: handlers/menu_processing.py:150
 #, python-brace-format
 msgid "<strong>Товар {page} из {pages}</strong>"
 msgstr ""
 
-#: handlers/menu_processing.py:152
+#: handlers/menu_processing.py:171
 msgid "Произошла непредвиденная ошибка при загрузке товаров. Попробуйте позже."
 msgstr ""
 
-#: handlers/menu_processing.py:205
+#: handlers/menu_processing.py:224
 #, python-brace-format
 msgid ""
 "<strong>{name}</strong>\n"
 "{price}{currency} x {qty} = {sum}{currency}\n"
 msgstr ""
 
-#: handlers/menu_processing.py:212
+#: handlers/menu_processing.py:231
 #, python-brace-format
 msgid ""
 "Товар {page} из {pages} в корзине.\n"
 "Общая стоимость: {total}{currency}"
+msgstr ""
+
+#: handlers/order_processing.py:37
+msgid "Курьер"
+msgstr ""
+
+#: handlers/order_processing.py:38
+msgid "Самовывоз"
+msgstr ""
+
+#: handlers/order_processing.py:39
+msgid "⬅️ Назад в корзину"
+msgstr ""
+
+#: handlers/order_processing.py:44
+msgid "✅ Подтвердить заказ"
+msgstr ""
+
+#: handlers/order_processing.py:45 kbds/inline.py:62 kbds/inline.py:99
+msgid "Назад"
+msgstr ""
+
+#: handlers/order_processing.py:51
+msgid "📍 Отправить геолокацию"
+msgstr ""
+
+#: handlers/order_processing.py:52 handlers/order_processing.py:66
+#: handlers/order_processing.py:74
+msgid "⬅️ Назад"
+msgstr ""
+
+#: handlers/order_processing.py:60
+msgid "✅ Да"
+msgstr ""
+
+#: handlers/order_processing.py:61
+msgid "✏️ Ввести вручную"
+msgstr ""
+
+#: handlers/order_processing.py:72
+msgid "📞 Отправить номер телефона"
+msgstr ""
+
+#: handlers/order_processing.py:92 handlers/order_processing.py:226
+#: handlers/order_processing.py:402
+msgid "Выберите способ доставки:"
+msgstr ""
+
+#: handlers/order_processing.py:119
+msgid "Пожалуйста, отправьте геолокацию для расчёта стоимости доставки."
+msgstr ""
+
+#: handlers/order_processing.py:125
+msgid "Отправьте геолокацию кнопкой ниже ⬇️"
+msgstr ""
+
+#: handlers/order_processing.py:152
+msgid "Ошибка: координаты салона не заданы."
+msgstr ""
+
+#: handlers/order_processing.py:162
+#, python-brace-format
+msgid "Геолокация ({lat:.5f}, {lon:.5f})"
+msgstr ""
+
+#: handlers/order_processing.py:193
+#, python-brace-format
+msgid ""
+"Вы находитесь по адресу:\n"
+"<b>{address}</b>\n"
+"Всё верно?"
+msgstr ""
+
+#: handlers/order_processing.py:241
+msgid "Пожалуйста, введите корректный адрес."
+msgstr ""
+
+#: handlers/order_processing.py:248 handlers/order_processing.py:275
+#: handlers/order_processing.py:375
+msgid "Пожалуйста, укажите номер квартиры (или подъезда, офиса):"
+msgstr ""
+
+#: handlers/order_processing.py:300
+#, python-brace-format
+msgid ", кв./офис {apt}"
+msgstr ""
+
+#: handlers/order_processing.py:314 handlers/order_processing.py:624
+#: handlers/order_processing.py:653
+msgid ""
+"Пожалуйста, введите ваш номер телефона или отправьте контакт кнопкой ниже"
+" 👇"
+msgstr ""
+
+#: handlers/order_processing.py:335
+msgid "Пожалуйста, введите адрес вручную:"
+msgstr ""
+
+#: handlers/order_processing.py:437
+msgid "Спасибо, номер получен!"
+msgstr ""
+
+#: handlers/order_processing.py:445
+msgid "Проверьте все данные и подтвердите заказ!"
+msgstr ""
+
+#: handlers/order_processing.py:477
+#, python-brace-format
+msgid ""
+"Вы достигли лимита бесплатного тарифа ({limit} заказов). Чтобы продолжить"
+" приём заказов, продлите подписку."
+msgstr ""
+
+#: handlers/order_processing.py:501
+msgid "Спасибо! Ваш заказ принят 👍"
+msgstr ""
+
+#: handlers/order_processing.py:504
+msgid "Ваша корзина пуста или не выбран салон. Заказ не оформлен."
+msgstr ""
+
+#: handlers/order_processing.py:523
+msgid "Не удалось определить салон. Пожалуйста, выберите салон."
+msgstr ""
+
+#: handlers/order_processing.py:582
+msgid "Открыть на карте"
+msgstr ""
+
+#: handlers/order_processing.py:586
+msgid "Адрес салона не указан"
 msgstr ""
 
 #: handlers/user_private.py:63
@@ -188,5 +319,57 @@ msgstr ""
 
 #: handlers/user_private.py:305
 msgid "Ошибка при загрузке товара."
+msgstr ""
+
+#: kbds/inline.py:25
+msgid "Товары 🛍️"
+msgstr ""
+
+#: kbds/inline.py:26 kbds/inline.py:68 kbds/inline.py:105
+msgid "Корзина 🛒"
+msgstr ""
+
+#: kbds/inline.py:27
+msgid "О нас ℹ️"
+msgstr ""
+
+#: kbds/inline.py:28
+msgid "Оплата 💰"
+msgstr ""
+
+#: kbds/inline.py:29
+msgid "Доставка ⛵"
+msgstr ""
+
+#: kbds/inline.py:111
+msgid "Купить 💵"
+msgstr ""
+
+#: kbds/inline.py:151
+msgid "Удалить"
+msgstr ""
+
+#: kbds/inline.py:189 kbds/inline.py:201
+msgid "На главную 🏠"
+msgstr ""
+
+#: kbds/inline.py:193
+msgid "Заказать"
+msgstr ""
+
+#: kbds/inline.py:227
+msgid "Добавить товар"
+msgstr ""
+
+#: kbds/inline.py:228
+msgid "Ассортимент"
+msgstr ""
+
+#: kbds/inline.py:229
+msgid "Добавить/Изменить баннер"
+msgstr ""
+
+#: kbds/inline.py:230
+msgid "Создать салон"
 msgstr ""
 

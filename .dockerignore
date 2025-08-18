@@ -1,23 +1,27 @@
-# Исключаем виртуальное окружение
+# Виртуальное окружение
 .venv/
 venv/
+
+# Кеши Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# Исключаем папку для веб-приложения (FastAPI)
-web_app/
-
-# Исключаем IDE и прочие конфиги
+# IDE и конфиги
 .idea/
 .vscode/
 *.log
 
-# Исключаем тесты (если есть)
+# Тесты (если не запускаются в Docker)
 tests/
 
-# Исключаем локальные медиа
+# Локальные медиа-файлы (если есть)
+media/
+uploads/
 
+# Приложение FastAPI (если не нужно)
+web_app/
 
-# Docker и Compose
+# Docker Compose override
 docker-compose.override.yml
-.dockerignore

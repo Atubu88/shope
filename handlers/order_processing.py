@@ -20,6 +20,7 @@ from database.orm_query import (
     orm_get_user_salons, orm_get_orders_count,
 )
 from database.models import UserSalon
+from utils.i18n import _, i18n
 
 order_router = Router()
 
@@ -33,22 +34,22 @@ class OrderStates(StatesGroup):
 
 def get_delivery_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Курьер", callback_data="delivery_courier")],
-        [InlineKeyboardButton(text="Самовывоз", callback_data="delivery_pickup")],
-        [InlineKeyboardButton(text="⬅️ Назад в корзину", callback_data="back_to_cart")],
+        [InlineKeyboardButton(text=_("Курьер"), callback_data="delivery_courier")],
+        [InlineKeyboardButton(text=_("Самовывоз"), callback_data="delivery_pickup")],
+        [InlineKeyboardButton(text=_("⬅️ Назад в корзину"), callback_data="back_to_cart")],
     ])
 
 def get_confirm_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Подтвердить заказ", callback_data="confirm_order")],
-        [InlineKeyboardButton(text="Назад", callback_data="back_to_phone")],
+        [InlineKeyboardButton(text=_("✅ Подтвердить заказ"), callback_data="confirm_order")],
+        [InlineKeyboardButton(text=_("Назад"), callback_data="back_to_phone")],
     ])
 
 def geo_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)],
-            [KeyboardButton(text="⬅️ Наза")],    # ← обычный текст, без константы
+            [KeyboardButton(text=_("📍 Отправить геолокацию"), request_location=True)],
+            [KeyboardButton(text=_("⬅️ Назад"))],
         ],
         resize_keyboard=True,
         one_time_keyboard=True
@@ -56,18 +57,21 @@ def geo_keyboard() -> ReplyKeyboardMarkup:
 
 def confirm_address_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Да", callback_data="address_ok")],
-        [InlineKeyboardButton(text="✏️ Ввести вручную", callback_data="address_manual")]
+        [InlineKeyboardButton(text=_("✅ Да"), callback_data="address_ok")],
+        [InlineKeyboardButton(text=_("✏️ Ввести вручную"), callback_data="address_manual")]
     ])
 
-BACK_PHONE_TXT = "⬅️ Назад"
+
+def is_back_button(message: types.Message) -> bool:
+    return (message.text or "") == _("⬅️ Назад")
+
 
 def phone_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📞 Отправить номер телефона",
+            [KeyboardButton(text=_("📞 Отправить номер телефона"),
                             request_contact=True)],
-            [KeyboardButton(text=BACK_PHONE_TXT)]
+            [KeyboardButton(text=_("⬅️ Назад"))]
         ],
         resize_keyboard=True,
         one_time_keyboard=True
@@ -85,7 +89,7 @@ async def start_order(callback: CallbackQuery, state: FSMContext, session: Async
     state_data = {"delivery": None, "address": None, "delivery_cost": 0, "distance_km": None}
     summary = await get_order_summary(session, user_salon_id, state_data)
     msg = await callback.message.answer(
-        summary + "\n\nВыберите способ доставки:",
+        summary + "\n\n" + _("Выберите способ доставки:"),
         reply_markup=get_delivery_kb(),
         parse_mode="HTML"
     )
@@ -112,13 +116,13 @@ async def choose_delivery_courier(callback: CallbackQuery,
     await callback.bot.edit_message_text(
         chat_id=callback.message.chat.id,
         message_id=last_msg_id,
-        text="Пожалуйста, отправьте геолокацию для расчёта стоимости доставки.",
+        text=_("Пожалуйста, отправьте геолокацию для расчёта стоимости доставки."),
         reply_markup=None
     )
 
     # ⬇️ оставляем пузырёк с Reply‑клавиатурой — НЕ удаляем!
     geo_msg = await callback.message.answer(
-        "Отправьте геолокацию кнопкой ниже ⬇️",
+        _("Отправьте геолокацию кнопкой ниже ⬇️"),
         reply_markup=geo_keyboard()
     )
 
@@ -145,7 +149,7 @@ async def receive_location(message: types.Message, state: FSMContext, session: A
     salon    = await orm_get_salon_by_id(session, user.salon_id) if user else None
 
     if not salon.latitude or not salon.longitude:
-        await message.answer("Ошибка: координаты салона не заданы.")
+        await message.answer(_("Ошибка: координаты салона не заданы."))
         return
 
     salon_lat = float(salon.latitude)
@@ -155,7 +159,7 @@ async def receive_location(message: types.Message, state: FSMContext, session: A
 
     address_str = (
         get_address_from_coords(user_lat, user_lon)
-        or f"Геолокация ({user_lat:.5f}, {user_lon:.5f})"
+        or _("Геолокация ({lat:.5f}, {lon:.5f})").format(lat=user_lat, lon=user_lon)
     )
 
     await state.update_data(
@@ -186,14 +190,14 @@ async def receive_location(message: types.Message, state: FSMContext, session: A
 
     # --- спрашиваем подтверждение адреса --------------------------------
     confirm_msg = await message.answer(
-        f"Вы находитесь по адресу:\n<b>{address_str}</b>\nВсё верно?",
+        _("Вы находитесь по адресу:\n<b>{address}</b>\nВсё верно?").format(address=address_str),
         reply_markup=confirm_address_kb(),
         parse_mode="HTML"
     )
     await state.update_data(confirm_addr_msg_id=confirm_msg.message_id)
     await state.set_state(OrderStates.confirming_address)
 
-@order_router.message(OrderStates.entering_address, F.text == "⬅️ Назад")
+@order_router.message(OrderStates.entering_address, is_back_button)
 async def back_to_delivery_msg(message: types.Message,
                                state: FSMContext,
                                session: AsyncSession):
@@ -219,7 +223,7 @@ async def back_to_delivery_msg(message: types.Message,
     summary  = await get_order_summary(session, user_salon_id, data) if user_salon_id else ""
 
     new_msg = await message.answer(
-        summary + "\n\nВыберите способ доставки:",
+        summary + "\n\n" + _("Выберите способ доставки:"),
         reply_markup=get_delivery_kb(),
         parse_mode="HTML"
     )
@@ -234,14 +238,14 @@ async def back_to_delivery_msg(message: types.Message,
 async def receive_address_text(message: types.Message, state: FSMContext):
     address_str = message.text.strip()
     if not address_str:
-        await message.answer("Пожалуйста, введите корректный адрес.")
+        await message.answer(_("Пожалуйста, введите корректный адрес."))
         return
 
     await state.update_data(address=address_str)
     # Просим ввести номер квартиры/офиса
     await state.set_state(OrderStates.entering_apartment)
     await message.answer(
-        "Пожалуйста, укажите номер квартиры (или подъезда, офиса):",
+        _("Пожалуйста, укажите номер квартиры (или подъезда, офиса):"),
         reply_markup=ReplyKeyboardRemove()
     )
 
@@ -268,7 +272,7 @@ async def address_ok(callback: CallbackQuery,
 
     # спрашиваем номер квартиры
     ask_msg = await callback.message.answer(
-        "Пожалуйста, укажите номер квартиры (или подъезда, офиса):",
+        _("Пожалуйста, укажите номер квартиры (или подъезда, офиса):"),
         reply_markup=ReplyKeyboardRemove()
     )
 
@@ -293,7 +297,7 @@ async def receive_apartment(message: types.Message, state: FSMContext):
 
     # дописываем квартиру к адресу
     if apartment:
-        full_addr += f", кв./офис {apartment}"
+        full_addr += _(", кв./офис {apt}").format(apt=apartment)
     await state.update_data(address=full_addr)
 
     # удаляем подсказку «Укажите номер квартиры»
@@ -307,7 +311,7 @@ async def receive_apartment(message: types.Message, state: FSMContext):
     await state.set_state(OrderStates.entering_phone)
 
     phone_msg = await message.answer(
-        "Пожалуйста, введите ваш номер телефона или отправьте контакт кнопкой ниже 👇",
+        _("Пожалуйста, введите ваш номер телефона или отправьте контакт кнопкой ниже 👇"),
         reply_markup=phone_keyboard()
     )
 
@@ -328,10 +332,10 @@ async def address_manual(callback: CallbackQuery, state: FSMContext):
     except Exception:
         pass
     await state.set_state(OrderStates.entering_address)
-    await callback.message.answer("Пожалуйста, введите адрес вручную:")
+    await callback.message.answer(_("Пожалуйста, введите адрес вручную:"))
 
 # ─── «⬅️ Назад» со стадии ввода телефона ──────────────────────────────
-@order_router.message(OrderStates.entering_phone, F.text == BACK_PHONE_TXT)
+@order_router.message(OrderStates.entering_phone, is_back_button)
 async def phone_back(message: types.Message,
                      state: FSMContext,
                      session: AsyncSession):
@@ -368,7 +372,7 @@ async def phone_back(message: types.Message,
 
         await state.set_state(OrderStates.entering_apartment)
         await state.update_data(phone_back=None, phone_msg_id=None)
-        await message.answer("Пожалуйста, укажите номер квартиры (или подъезда, офиса):")
+        await message.answer(_("Пожалуйста, укажите номер квартиры (или подъезда, офиса):"))
         return
 
     # ============= ВОЗВРАТ К ВЫБОРУ ДОСТАВКИ ===========================
@@ -395,7 +399,7 @@ async def phone_back(message: types.Message,
     summary = await get_order_summary(session, user_salon_id, data) if user_salon_id else ""
 
     new_msg = await message.answer(
-        summary + "\n\nВыберите способ доставки:",
+        summary + "\n\n" + _("Выберите способ доставки:"),
         reply_markup=get_delivery_kb(),
         parse_mode="HTML"
     )
@@ -430,7 +434,7 @@ async def enter_phone(message: types.Message, state: FSMContext, session: AsyncS
 
     # ❶ сначала «спасибо» + убираем Reply‑клавиатуру
     await message.answer(
-        "Спасибо, номер получен!",
+        _("Спасибо, номер получен!"),
         reply_markup=ReplyKeyboardRemove()
     )
 
@@ -438,7 +442,7 @@ async def enter_phone(message: types.Message, state: FSMContext, session: AsyncS
     summary = await get_order_summary(session, user_salon_id, {**data, "phone": phone}) if user_salon_id else ""
 
     msg = await message.answer(
-        summary + "\n\nПроверьте все данные и подтвердите заказ!",
+        summary + "\n\n" + _("Проверьте все данные и подтвердите заказ!"),
         reply_markup=get_confirm_kb(),
         parse_mode="HTML"
     )
@@ -469,7 +473,9 @@ async def confirm_order(callback: CallbackQuery,
             orders_count = await orm_get_orders_count(session, salon.id)
             if orders_count >= salon.order_limit:
                 await callback.message.answer(
-                    f"Вы достигли лимита бесплатного тарифа ({salon.order_limit} заказов). Чтобы продолжить приём заказов, продлите подписку."
+                    _(
+                        "Вы достигли лимита бесплатного тарифа ({limit} заказов). Чтобы продолжить приём заказов, продлите подписку."
+                    ).format(limit=salon.order_limit)
                 )
                 await state.clear()
                 return
@@ -492,10 +498,10 @@ async def confirm_order(callback: CallbackQuery,
         except Exception:
             pass
         # 7. Благодарим клиента
-        await callback.message.answer("Спасибо! Ваш заказ принят 👍")
+        await callback.message.answer(_("Спасибо! Ваш заказ принят 👍"))
         await state.clear()
     else:
-        await callback.message.answer("Ваша корзина пуста или не выбран салон. Заказ не оформлен.")
+        await callback.message.answer(_("Ваша корзина пуста или не выбран салон. Заказ не оформлен."))
         await state.clear()
 
     await callback.answer()
@@ -514,7 +520,7 @@ async def back_to_cart(callback: CallbackQuery, state: FSMContext, session: Asyn
         user_id = callback.from_user.id
         user_salons = await orm_get_user_salons(session, user_id)
         if len(user_salons) != 1:
-            await callback.message.answer("Не удалось определить салон. Пожалуйста, выберите салон.")
+            await callback.message.answer(_("Не удалось определить салон. Пожалуйста, выберите салон."))
             await callback.answer()
             return
         user_salon_id = user_salons[0].id
@@ -571,9 +577,13 @@ async def choose_delivery_pickup(callback: CallbackQuery, state: FSMContext, ses
 
     # --- Генерируем ссылку на карту, если есть координаты ---
     if salon.latitude and salon.longitude:
-        address = f'<a href="https://maps.google.com/?q={salon.latitude},{salon.longitude}">Открыть на карте</a>'
+        address = (
+            f'<a href="https://maps.google.com/?q={salon.latitude},{salon.longitude}">' +
+            _("Открыть на карте") +
+            '</a>'
+        )
     else:
-        address = "Адрес салона не указан"
+        address = _("Адрес салона не указан")
 
     await state.update_data(
         delivery="delivery_pickup",
@@ -611,7 +621,7 @@ async def choose_delivery_pickup(callback: CallbackQuery, state: FSMContext, ses
     await state.set_state(OrderStates.entering_phone)
 
     phone_msg = await callback.message.answer(
-        "Пожалуйста, введите ваш номер телефона или отправьте контакт кнопкой ниже 👇",
+        _("Пожалуйста, введите ваш номер телефона или отправьте контакт кнопкой ниже 👇"),
         reply_markup=phone_keyboard()
     )
 
@@ -640,12 +650,11 @@ async def back_to_phone(callback: CallbackQuery, state: FSMContext):
     # Возвращаемся к стадии ввода телефона
     await state.set_state(OrderStates.entering_phone)
     await callback.message.answer(
-        "Пожалуйста, введите ваш номер телефона или отправьте контакт кнопкой ниже 👇",
+        _("Пожалуйста, введите ваш номер телефона или отправьте контакт кнопкой ниже 👇"),
         reply_markup=phone_keyboard()
     )
 
     # Закрываем «часики» на кнопке
     await callback.answer()
-
 
 

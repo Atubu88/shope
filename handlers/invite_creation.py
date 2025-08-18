@@ -28,7 +28,7 @@ from database.orm_query import (
 )
 from filters.chat_types import ChatTypeFilter
 from utils.slug import generate_unique_slug
-
+from utils.i18n import i18n, _
 # Роутер для инвайтов — подключай в main.py до общего старт-хендлера
 invite_creation_router = Router()
 invite_creation_router.message.filter(ChatTypeFilter(["private"]))  # только личка для сообщений
@@ -109,7 +109,6 @@ async def start_via_invite(
     message: types.Message,
     state: FSMContext,
     session: AsyncSession,
-    i18n: I18n,
 ) -> None:
     await state.clear()  # гасим висящие стейты
     user_id = message.from_user.id
@@ -139,15 +138,25 @@ async def invite_set_language(
     i18n: I18n,
 ) -> None:
     lang = callback.data.split("_", 1)[1]
+
+    # Устанавливаем язык в контексте
+    i18n.ctx_locale.set(lang)
+
+    # Создаём нового пользователя с языком
     session.add(User(user_id=callback.from_user.id, language=lang))
     await session.commit()
-    i18n.ctx_locale.set(lang)
+
+    # Удаляем сообщение с выбором языка
     await callback.message.delete()
+    await callback.answer()
+
+    # Продолжаем цепочку вручную
     await callback.message.answer(
         _("Введите название салона:"), reply_markup=ReplyKeyboardRemove()
     )
     await state.set_state(AddSalon.name)
-    await callback.answer()
+
+
 
 @invite_creation_router.callback_query(AddSalon.language)
 async def invite_set_language_invalid(callback: types.CallbackQuery) -> None:
