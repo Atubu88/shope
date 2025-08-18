@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-08-18 01:18+0200\n"
+"POT-Creation-Date: 2025-08-18 12:52+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.17.0\n"
 
-#: common/texts_for_db.py:9
+#: common/texts_for_db.py:15
 msgid "Добро пожаловать!"
 msgstr "Welcome!"
 
-#: common/texts_for_db.py:10
+#: common/texts_for_db.py:17
 msgid ""
 "Информация о компании.\n"
 "Режим работы: ежедневно."
@@ -30,39 +30,39 @@ msgstr ""
 "Company information.\n"
 "Working hours: daily."
 
-#: common/texts_for_db.py:12
+#: common/texts_for_db.py:20
 msgid "Способы оплаты:"
 msgstr "Payment methods:"
 
-#: common/texts_for_db.py:13
+#: common/texts_for_db.py:21
 msgid "Онлайн-картой в боте"
 msgstr "Online card payment in the bot"
 
-#: common/texts_for_db.py:14
+#: common/texts_for_db.py:22
 msgid "Картой при получении"
 msgstr "Card upon delivery"
 
-#: common/texts_for_db.py:15
+#: common/texts_for_db.py:23
 msgid "Наличными при получении"
 msgstr "Cash upon delivery"
 
-#: common/texts_for_db.py:20
+#: common/texts_for_db.py:29
 msgid "Способы получения заказа:"
 msgstr "Order delivery methods:"
 
-#: common/texts_for_db.py:21
+#: common/texts_for_db.py:30
 msgid "Курьерская доставка"
 msgstr "Courier delivery"
 
-#: common/texts_for_db.py:22
+#: common/texts_for_db.py:31
 msgid "Самовывоз из точки продаж"
 msgstr "Pickup from point of sale"
 
-#: common/texts_for_db.py:27
+#: common/texts_for_db.py:37
 msgid "Каталог товаров и услуг:"
 msgstr "Catalog of products and services:"
 
-#: common/texts_for_db.py:28
+#: common/texts_for_db.py:39
 msgid "В корзине пока нет товаров."
 msgstr "Your cart is empty."
 
@@ -70,46 +70,93 @@ msgstr "Your cart is empty."
 msgid "Введите название салона:"
 msgstr "Enter the salon name:"
 
-#: handlers/invite_creation.py:127 handlers/user_private.py:48
+#: handlers/invite_creation.py:127 handlers/user_private.py:51
 msgid "Русский"
 msgstr "Russian"
 
-#: handlers/invite_creation.py:128 handlers/user_private.py:49
+#: handlers/invite_creation.py:128 handlers/user_private.py:52
 msgid "English"
 msgstr "English"
 
 #: handlers/invite_creation.py:130 handlers/invite_creation.py:162
-#: handlers/user_private.py:51
+#: handlers/user_private.py:55
 msgid "Выберите язык"
 msgstr "Choose a language"
+
+#: handlers/menu_processing.py:91
+msgid "◀ Пред."
+msgstr ""
+
+#: handlers/menu_processing.py:93
+msgid "След. ▶"
+msgstr ""
+
+#: handlers/menu_processing.py:114
+msgid ""
+"В этой категории пока нет товаров. Попробуйте позже или выберите другую "
+"категорию."
+msgstr ""
+
+#: handlers/menu_processing.py:125
+#, python-brace-format
+msgid ""
+"<strong>{name}</strong>\n"
+"{description}\n"
+"Стоимость: {price}{currency}\n"
+msgstr ""
+
+#: handlers/menu_processing.py:131
+#, python-brace-format
+msgid "<strong>Товар {page} из {pages}</strong>"
+msgstr ""
+
+#: handlers/menu_processing.py:152
+msgid "Произошла непредвиденная ошибка при загрузке товаров. Попробуйте позже."
+msgstr ""
+
+#: handlers/menu_processing.py:205
+#, python-brace-format
+msgid ""
+"<strong>{name}</strong>\n"
+"{price}{currency} x {qty} = {sum}{currency}\n"
+msgstr ""
+
+#: handlers/menu_processing.py:212
+#, python-brace-format
+msgid ""
+"Товар {page} из {pages} в корзине.\n"
+"Общая стоимость: {total}{currency}"
+msgstr ""
 
 #: handlers/user_private.py:63
 msgid "Язык обновлён"
 msgstr "Language updated"
 
-#: handlers/user_private.py:100
+#: handlers/user_private.py:102
+#, fuzzy
 msgid ""
 "✅ Вы стали суперадмином.\n"
-"Создайте первый салон командой /create_sалon"
+"Создайте первый салон командой /create_salon"
 msgstr ""
 "✅ You are now a super admin.\n"
 "Create your first salon with the command /create_salon"
 
-#: handlers/user_private.py:104
+#: handlers/user_private.py:105
 msgid "Салонов пока нет. Обратитесь к администратору."
 msgstr "No salons available yet. Please contact the administrator."
 
-#: handlers/user_private.py:128 handlers/user_private.py:154
+#: handlers/user_private.py:130 handlers/user_private.py:156
 #, python-brace-format
 msgid "Вы находитесь в салоне: <b>{name}</b>"
 msgstr "You are in the salon: <b>{name}</b>"
 
-#: handlers/user_private.py:144
+#: handlers/user_private.py:146
 msgid ""
 "У вас пока нет салонов. Попросите администратора прислать пригласительную"
 " ссылку или создайте собственный салон по инвайту."
 msgstr ""
-"You don't have any salons yet. Ask the administrator to send you an invite link or create your own salon using an invitation."
+"You don't have any salons yet. Ask the administrator to send you an "
+"invite link or create your own salon using an invitation."
 
 #: handlers/user_private.py:167
 msgid "Выберите салон:"
@@ -119,7 +166,7 @@ msgstr "Choose a salon:"
 msgid "Салон не выбран."
 msgstr "No salon selected."
 
-#: handlers/user_private.py:188
+#: handlers/user_private.py:189
 msgid "Товар добавлен в корзину."
 msgstr "Item added to cart."
 
@@ -127,26 +174,27 @@ msgstr "Item added to cart."
 msgid "Салон выбран"
 msgstr "Salon selected"
 
-#: handlers/user_private.py:239
+#: handlers/user_private.py:237
 msgid "Салон не выбран. Перезапустите бота командой /start."
 msgstr "Salon not selected. Please restart the bot with the /start command."
 
-#: handlers/user_private.py:265
+#: handlers/user_private.py:262
 msgid "Салон не выбран. Перезапустите /start."
 msgstr "Salon not selected. Restart using /start."
 
-#: handlers/user_private.py:270
+#: handlers/user_private.py:267
 msgid "Салон не найден. Перезапустите /start."
 msgstr "Salon not found. Restart using /start."
 
-#: handlers/user_private.py:277
+#: handlers/user_private.py:274
 msgid "Товар не найден!"
 msgstr "Item not found!"
 
-#: handlers/user_private.py:285
+#: handlers/user_private.py:282
 msgid "Товар не найден в этой категории!"
 msgstr "Item not found in this category!"
 
-#: handlers/user_private.py:308
+#: handlers/user_private.py:305
 msgid "Ошибка при загрузке товара."
 msgstr "Error loading item."
+

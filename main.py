@@ -1,18 +1,27 @@
-import asyncio
 import os
-
-from aiogram import Bot, Dispatcher, types
-from aiogram.enums import ParseMode
-from aiogram.client.bot import DefaultBotProperties
-from aiogram.utils.i18n import I18n, gettext as _, ngettext, I18nMiddleware, SimpleI18nMiddleware
+import asyncio
+import logging
 from dotenv import find_dotenv, load_dotenv
 
+# Сразу грузим .env
 load_dotenv(find_dotenv())
 
+# Базовая настройка логгера
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s:%(name)s:%(message)s",
+)
+
+from aiogram import Bot, Dispatcher
+from aiogram.enums import ParseMode
+from aiogram.client.bot import DefaultBotProperties
+
+# 🟢 Middleware
 from middlewares.db import DataBaseSession
 from middlewares.user_locale import UserLocaleMiddleware
-from database.engine import  session_maker
+from database.engine import session_maker
 
+# 🟢 Роутеры
 from handlers.user_private import user_private_router
 from handlersadmin.add_product import add_product_router
 from handlersadmin.products import products_router
@@ -26,18 +35,17 @@ from handlersadmin.menu import admin_menu_router
 from handlers.inline_mode import inline_router
 from handlers.invite_creation import invite_creation_router
 from handlers.invite_link import invite_link_router
-# ALLOWED_UPDATES = ['message', 'edited_message', 'callback_query']
 
-# ✅ Новый способ передачи parse_mode
+# ВАЖНО: не создаём новый I18n здесь — используем utils/i18n
+
 bot = Bot(
-    token=os.getenv('TOKEN'),
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    token=os.getenv("TOKEN"),
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML),
 )
 
-
 dp = Dispatcher()
-i18n = I18n(path="locales", domain="messages", default_locale="ru")
 
+# ✅ Подключение роутеров
 dp.include_router(user_private_router)
 dp.include_router(admin_menu_router)
 dp.include_router(add_product_router)
@@ -47,30 +55,34 @@ dp.include_router(products_router)
 dp.include_router(categories_router)
 dp.include_router(settings_router)
 dp.include_router(orders_router)
-#dp.include_router(admin_router)
-#dp.include_router(salon_creation_router)
 dp.include_router(order_router)
 dp.include_router(inline_router)
 dp.include_router(invite_link_router)
 dp.include_router(invite_creation_router)
 
-async def on_startup(bot):
-    pass
 
-async def on_shutdown(bot):
-    print('бот лег')
+async def on_startup(bot: Bot):
+    print("✅ Бот запущен")
+
+
+async def on_shutdown(bot: Bot):
+    print("❌ Бот остановлен")
+
 
 async def main():
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)
 
-    dp.update.middleware(DataBaseSession(session_pool=session_maker))  # 1. Сначала БД
-    dp.update.middleware(SimpleI18nMiddleware(i18n))  # 2. Стандартный i18n
-    dp.update.middleware(UserLocaleMiddleware(i18n))
+    # 1) сначала БД — кладёт session в data
+    dp.update.middleware(DataBaseSession(session_pool=session_maker))
+
+    # 2) язык — навешиваем на message и callback_query (надёжнее, чем update)
+    dp.message.middleware(UserLocaleMiddleware())
+    dp.callback_query.middleware(UserLocaleMiddleware())
 
     await bot.delete_webhook(drop_pending_updates=True)
-    # await bot.delete_my_commands(scope=types.BotCommandScopeAllPrivateChats())
-    # await bot.set_my_commands(commands=private, scope=types.BotCommandScopeAllPrivateChats())
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
-asyncio.run(main())
+
+if __name__ == "__main__":
+    asyncio.run(main())

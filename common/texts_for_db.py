@@ -1,11 +1,16 @@
+from typing import Dict
+
 from aiogram.types import Message
 from aiogram.utils.formatting import Bold, as_list, as_marked_section
-from aiogram.utils.i18n import lazy_gettext as _
 
+from utils.i18n import _  # ✅ единый gettext
 
 
 def get_description_for_info_pages(page_key: str):
-    """Возвращает переведённый текст по ключу страницы."""
+    """
+    Возвращает переведённый текст/структуру форматирования по ключу страницы
+    с учётом текущей локали (i18n.ctx_locale).
+    """
     if page_key == "main":
         return _("Добро пожаловать!")
     elif page_key == "about":
@@ -37,24 +42,27 @@ def get_description_for_info_pages(page_key: str):
 
 
 async def show_info(page_key: str, message: Message):
-    """Отправляет информацию по указанному ключу пользователю."""
+    """
+    Отправляет информацию по указанному ключу пользователю.
+    Учитывает, что get_description_for_info_pages может вернуть объект форматирования.
+    """
     data = get_description_for_info_pages(page_key)
-    if hasattr(data, "as_html"):
-        text = data.as_html()
-    else:
-        text = str(data)
+    text = data.as_html() if hasattr(data, "as_html") else str(data)
     await message.answer(text)
 
 
 def get_default_banner_description(page_key: str) -> str:
-    """Возвращает описание для баннера с учётом i18n."""
+    """
+    Возвращает описание для баннера с учётом текущей локали (ctx_locale).
+    Совместимо и со строками, и с объектами форматирования.
+    """
     data = get_description_for_info_pages(page_key)
     if hasattr(data, "as_html"):
         return data.as_html()
     return str(data)
 
 
-images_for_info_pages = {
+images_for_info_pages: Dict[str, str] = {
     "main": "banners/main.jpg",
     "about": "banners/about.jpg",
     "payment": "banners/payment.jpg",
@@ -63,8 +71,5 @@ images_for_info_pages = {
     "cart": "banners/cart.jpg",
 }
 
-# ``description_for_info_pages`` contains placeholder entries for banner
-# descriptions. ``None`` values mean that the application will use
-# ``get_default_banner_description`` until an administrator sets a custom
-# description in the database.
-description_for_info_pages = {key: None for key in images_for_info_pages}
+# Описания баннеров: если None — будет использован get_default_banner_description(page_key).
+description_for_info_pages: Dict[str, str | None] = {key: None for key in images_for_info_pages}

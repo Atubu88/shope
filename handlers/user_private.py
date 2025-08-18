@@ -2,13 +2,12 @@ from aiogram import F, types, Router
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
-
-from aiogram.utils.i18n import gettext as _, I18n
-
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from utils.i18n import _, i18n  # ✅ единый i18n и gettext
 from common.bot_cmds_list import set_commands
 from database.models import Salon, User, UserSalon
 from database.orm_query import (
@@ -26,8 +25,7 @@ from database.orm_query import (
 from filters.chat_types import ChatTypeFilter
 from handlers.invite_creation import InviteFilter
 from handlers.menu_processing import get_menu_content, products
-from kbds.inline import MenuCallBack, get_callback_btns, SalonCallBack, get_salon_btns
-
+from kbds.inline import MenuCallBack, SalonCallBack, get_salon_btns
 
 
 user_private_router = Router()
@@ -35,28 +33,30 @@ user_private_router.message.filter(ChatTypeFilter(["private"]))
 
 
 @user_private_router.message(Command("language"))
-async def cmd_language(message: types.Message, session: AsyncSession, i18n: I18n):
+async def cmd_language(message: types.Message, session: AsyncSession):
+    """
+    Выбор языка. Локаль подтягивается из БД и выставляется на время апдейта,
+    чтобы кнопки и текст сразу были на нужном языке.
+    """
     # 1) подтянем язык пользователя из БД
     lang = await session.scalar(
         select(User.language).where(User.user_id == message.from_user.id)
     )
     if lang:
-        i18n.ctx_locale.set(lang)   # 2) выставим локаль на этот апдейт
+        # 2) выставим локаль на этот апдейт
+        i18n.ctx_locale.set(lang)
 
     # 3) теперь строки переведутся правильно
     kb = InlineKeyboardBuilder()
     kb.button(text=_("Русский"), callback_data="setlang_ru")
     kb.button(text=_("English"), callback_data="setlang_en")
     kb.adjust(2)
+
     await message.answer(_("Выберите язык"), reply_markup=kb.as_markup())
 
 
 @user_private_router.callback_query(F.data.startswith("setlang_"))
-async def set_language(
-    callback: types.CallbackQuery,
-    session: AsyncSession,
-    i18n: I18n,
-):
+async def set_language(callback: types.CallbackQuery, session: AsyncSession):
     lang = callback.data.split("_", 1)[1]
     await orm_set_user_language(session, callback.from_user.id, lang)
     i18n.ctx_locale.set(lang)
@@ -65,13 +65,14 @@ async def set_language(
 
 
 @user_private_router.message(CommandStart(), ~InviteFilter())
-async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSession, i18n: I18n):
+async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSession):
     await state.clear()
 
     args = message.text.split()
     param = args[1] if len(args) > 1 else None
     user_id = message.from_user.id
 
+    # создаём пользователя, если его ещё нет
     result = await session.execute(select(User).where(User.user_id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -82,39 +83,40 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
         session.add(user)
         await session.commit()
 
+    # подтянем запись с правами/языком
     user_record = await orm_get_user(session, user_id)
-
     if user_record and user_record.user and user_record.user.language:
         i18n.ctx_locale.set(user_record.user.language)
 
+    # команды бота с учётом ролей
     is_admin = bool(user_record and (user_record.is_super_admin or user_record.is_salon_admin))
     await set_commands(message.bot, user_id, is_admin)
 
+    # если салонов нет
     salons = await orm_get_salons(session)
     if not salons:
         if user.id == 1:
             user.is_super_admin = True
             await session.commit()
             await message.answer(
-                _(
-                    "✅ Вы стали суперадмином.\nСоздайте первый салон командой /create_sалon"
-                )
+                _("✅ Вы стали суперадмином.\nСоздайте первый салон командой /create_salon")
             )
         else:
             await message.answer(_("Салонов пока нет. Обратитесь к администратору."))
         return
 
+    # пробуем определить салон по параметру /start
     salon = None
     if param:
         if "-" in param:
-            slug, suffix = param.rsplit("-", 1)  # или second, tail, whatever
-
+            slug, _suffix = param.rsplit("-", 1)
             salon = await orm_get_salon_by_slug(session, slug)
         elif param.isdigit():
             salon = await session.get(Salon, int(param))
         else:
             salon = await orm_get_salon_by_slug(session, param)
 
+    # если салон определён — привяжем пользователя и зайдём в меню
     if salon:
         user_salon = await orm_add_user(
             session,
@@ -134,10 +136,10 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
         await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
         return
 
-    # ➜ Показываем только те салоны, к которым пользователь уже привязан
+    # ➜ показываем только те салоны, к которым пользователь уже привязан
     user_salons = await orm_get_user_salons(session, user_id)
 
-    # --- 0 салонов — сообщаем, что доступа пока нет ---------------------------
+    # 0 салонов — сообщаем, что доступа пока нет
     if not user_salons:
         await message.answer(
             _(
@@ -146,14 +148,12 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
         )
         return
 
-    # --- 1 салон — сразу заходим в него ---------------------------------------
+    # 1 салон — сразу заходим в него
     if len(user_salons) == 1:
         us = user_salons[0]
         await state.update_data(user_salon_id=us.id)
         await message.answer(
-            _("Вы находитесь в салоне: <b>{name}</b>").format(
-                name=us.salon.name
-            ),
+            _("Вы находитесь в салоне: <b>{name}</b>").format(name=us.salon.name),
             parse_mode="HTML",
         )
         media, reply_markup = await get_menu_content(
@@ -162,7 +162,7 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
         await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
         return
 
-    # --- >1 салонов — даём пользователю выбрать среди своих -------------------
+    # >1 салонов — даём пользователю выбрать среди своих
     await message.answer(
         _("Выберите салон:"),
         reply_markup=get_salon_btns([us.salon for us in user_salons]),
@@ -180,6 +180,7 @@ async def add_to_cart(
     if not user_salon_id:
         await callback.answer(_("Салон не выбран."))
         return
+
     await orm_add_to_cart(
         session,
         user_salon_id=user_salon_id,
@@ -194,7 +195,6 @@ async def choose_salon(
     callback_data: SalonCallBack,
     session: AsyncSession,
     state: FSMContext,
-    i18n: I18n,
 ):
     user_salon = await orm_add_user(
         session,
@@ -205,7 +205,7 @@ async def choose_salon(
     )
     await state.update_data(user_salon_id=user_salon.id)
 
-    # 🛠️ Фикс: вручную установить язык
+    # выставим язык пользователя, если он есть
     if user_salon.user and user_salon.user.language:
         i18n.ctx_locale.set(user_salon.user.language)
 
@@ -217,7 +217,6 @@ async def choose_salon(
     )
     await callback.message.edit_text(_("Салон выбран"))
     await callback.message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
-
 
 
 @user_private_router.callback_query(MenuCallBack.filter())
@@ -235,9 +234,7 @@ async def user_menu(
     user_salon_id = data.get("user_salon_id")
 
     if not user_salon_id:
-        await callback.answer(
-            _("Салон не выбран. Перезапустите бота командой /start.")
-        )
+        await callback.answer(_("Салон не выбран. Перезапустите бота командой /start."))
         return
 
     media, reply_markup = await get_menu_content(
@@ -254,11 +251,11 @@ async def user_menu(
     await callback.answer()
 
 
-
 @user_private_router.message(F.text.startswith("/product_"))
 async def show_product(message: Message, session: AsyncSession, state: FSMContext):
     try:
         product_id = int(message.text.split("_")[1])
+
         data = await state.get_data()
         user_salon_id = data.get("user_salon_id")
         if not user_salon_id:
