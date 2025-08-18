@@ -1,21 +1,25 @@
 from aiogram.types import Message
 from aiogram.utils.formatting import Bold, as_list, as_marked_section
-from aiogram.utils.i18n import gettext as _  # Используем обычный gettext
+from aiogram.utils.i18n import lazy_gettext as _
+
 
 
 def get_description_for_info_pages(page_key: str):
     """Возвращает переведённый текст по ключу страницы."""
-    mapping = {
-        "main": _("Добро пожаловать!"),
-        "about": _("Информация о компании.\nРежим работы: ежедневно."),
-        "payment": as_marked_section(
+    if page_key == "main":
+        return _("Добро пожаловать!")
+    elif page_key == "about":
+        return _("Информация о компании.\nРежим работы: ежедневно.")
+    elif page_key == "payment":
+        return as_marked_section(
             Bold(_("Способы оплаты:")),
             _("Онлайн-картой в боте"),
             _("Картой при получении"),
             _("Наличными при получении"),
             marker="✅ ",
-        ),
-        "shipping": as_list(
+        )
+    elif page_key == "shipping":
+        return as_list(
             as_marked_section(
                 Bold(_("Способы получения заказа:")),
                 _("Курьерская доставка"),
@@ -23,12 +27,13 @@ def get_description_for_info_pages(page_key: str):
                 marker="✅ ",
             ),
             sep="\n----------------------\n",
-        ),
-        "catalog": _("Каталог товаров и услуг:"),
-        "cart": _("В корзине пока нет товаров."),
-    }
-
-    return mapping.get(page_key, "")
+        )
+    elif page_key == "catalog":
+        return _("Каталог товаров и услуг:")
+    elif page_key == "cart":
+        return _("В корзине пока нет товаров.")
+    else:
+        return ""
 
 
 async def show_info(page_key: str, message: Message):
@@ -57,3 +62,9 @@ images_for_info_pages = {
     "catalog": "banners/catalog.jpg",
     "cart": "banners/cart.jpg",
 }
+
+# ``description_for_info_pages`` contains placeholder entries for banner
+# descriptions. ``None`` values mean that the application will use
+# ``get_default_banner_description`` until an administrator sets a custom
+# description in the database.
+description_for_info_pages = {key: None for key in images_for_info_pages}

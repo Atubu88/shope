@@ -1,5 +1,6 @@
 import os
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from database.orm_query import (
     orm_add_to_cart,
     orm_delete_from_cart,
@@ -22,6 +23,7 @@ from utils.currency import get_currency_symbol
 from aiogram.types import InputMediaPhoto, FSInputFile
 from database.models import UserSalon
 from aiogram.utils.i18n import gettext as _
+from common.texts_for_db import get_default_banner_description
 
 def get_image_banner(
     image: str | None,
@@ -51,18 +53,25 @@ def get_image_banner(
         )
 
 
+def resolve_banner_description(banner, page: str) -> str:
+    """Return banner description or default text when missing."""
+    return banner.description if banner and banner.description else get_default_banner_description(page)
+
+
 
 
 async def main_menu(session, level, menu_name, salon_id):
     banner = await orm_get_banner(session, menu_name, salon_id)
-    image = get_image_banner(banner.image if banner else None, banner.description if banner else "")
+    description = resolve_banner_description(banner, menu_name)
+    image = get_image_banner(banner.image if banner else None, description)
     kbds = get_user_main_btns(level=level)
     return image, kbds
 
 
 async def catalog(session, level, menu_name, salon_id):
     banner = await orm_get_banner(session, menu_name, salon_id)
-    image = get_image_banner(banner.image if banner else None, banner.description if banner else "")
+    description = resolve_banner_description(banner, menu_name)
+    image = get_image_banner(banner.image if banner else None, description)
     categories = await orm_get_categories(session, salon_id)
     kbds = get_user_catalog_btns(level=level, categories=categories)
     return image, kbds
@@ -134,9 +143,10 @@ async def carts(session, level, menu_name, page, user_salon_id, product_id, salo
 
     if not carts:
         banner = await orm_get_banner(session, "cart", salon_id)
+        desc = resolve_banner_description(banner, "cart")
         image = get_image_banner(
             banner.image if banner else None,
-            f"<strong>{banner.description}</strong>" if banner else _("Корзина пуста"),
+            f"<strong>{desc}</strong>",
         )
         kbds = get_user_cart(level=level, page=None, pagination_btns=None, product_id=None)
     else:
