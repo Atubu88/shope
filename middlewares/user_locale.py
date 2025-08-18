@@ -77,6 +77,7 @@ class UserLocaleMiddleware(BaseMiddleware):
         logger.info("locale=%s", i18n.ctx_locale.get())
 
         # (опционально) положим gettext в data
+        data["i18n"] = i18n
         data["_"] = i18n.gettext
 
         return await handler(event, data)
