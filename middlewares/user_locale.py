@@ -5,16 +5,16 @@ from aiogram.types import TelegramObject
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import logging
+import os
 
 from database.models import User
 from utils.i18n import i18n  # единый экземпляр I18n
 
-# Отладка: покажем, что модуль точно загрузился
-print("[i18n] UserLocaleMiddleware imported")
-
 # Логгер для i18n
 logger = logging.getLogger("i18n")
-logger.setLevel(logging.INFO)
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logger.setLevel(getattr(logging, log_level, logging.INFO))
+logger.debug("UserLocaleMiddleware imported")
 
 SUPPORTED_LOCALES = {"ru", "en"}
 
@@ -41,7 +41,7 @@ class UserLocaleMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         # Отладка: факт входа в миддлварь
-        print("[i18n] middleware called for user:", tg_user.id)
+        logger.debug("middleware called for user: %s", tg_user.id)
 
         locale: Optional[str] = None
 
@@ -72,8 +72,8 @@ class UserLocaleMiddleware(BaseMiddleware):
         # Установим локаль
         i18n.ctx_locale.set(locale)
 
-        # Двойная отладка — и print, и logging
-        print("[i18n] locale set ->", i18n.ctx_locale.get())
+        # Двойная отладка — теперь только logging
+        logger.debug("locale set -> %s", i18n.ctx_locale.get())
         logger.info("locale=%s", i18n.ctx_locale.get())
 
         # (опционально) положим gettext в data

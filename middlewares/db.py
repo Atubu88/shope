@@ -8,6 +8,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 # middlewares/db.py
 from sqlalchemy import text as sa_text
+import logging
+import os
+
+logger = logging.getLogger("db_middleware")
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logger.setLevel(getattr(logging, log_level, logging.INFO))
 
 class DataBaseSession(BaseMiddleware):
     def __init__(self, session_pool: async_sessionmaker):
@@ -16,9 +22,9 @@ class DataBaseSession(BaseMiddleware):
             bind = getattr(session_pool, "kw", {}).get("bind")
             if bind is not None:
                 u = bind.url
-                print("[MW] Engine URL:", str(u).replace(u.password or "", "***"))
+                logger.info("Engine URL: %s", str(u).replace(u.password or "", "***"))
         except Exception as e:
-            print("[MW] inspect engine failed:", e)
+            logger.warning("inspect engine failed: %s", e)
 
     async def __call__(self, handler, event, data):
         async with self.session_pool() as session:
@@ -28,9 +34,9 @@ class DataBaseSession(BaseMiddleware):
                     "select current_database(), inet_server_addr(), inet_server_port()"
                 ))
                 row = res.fetchone()
-                print("[MW] Connected to:", row)
+                logger.debug("Connected to: %s", row)
             except Exception as e:
-                print("[MW] session test FAIL:", e)
+                logger.error("session test FAIL: %s", e)
             data['session'] = session
             return await handler(event, data)
 
