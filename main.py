@@ -7,8 +7,9 @@ from dotenv import find_dotenv, load_dotenv
 load_dotenv(find_dotenv())
 
 # Базовая настройка логгера
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, log_level, logging.INFO),
     format="%(asctime)s %(levelname)s:%(name)s:%(message)s",
 )
 
@@ -62,11 +63,11 @@ dp.include_router(invite_creation_router)
 
 
 async def on_startup(bot: Bot):
-    print("✅ Бот запущен")
+    logging.info("✅ Бот запущен")
 
 
 async def on_shutdown(bot: Bot):
-    print("❌ Бот остановлен")
+    logging.info("❌ Бот остановлен")
 
 
 async def main():
