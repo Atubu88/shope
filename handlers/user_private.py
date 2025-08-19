@@ -56,12 +56,16 @@ async def cmd_language(message: types.Message, session: AsyncSession):
 
 
 @user_private_router.callback_query(StateFilter(None), F.data.startswith("setlang_"))
-async def set_language(callback: types.CallbackQuery, session: AsyncSession):
+async def set_language(callback: types.CallbackQuery, session: AsyncSession, state: FSMContext):
     lang = callback.data.split("_", 1)[1]
     await orm_set_user_language(session, callback.from_user.id, lang)
     i18n.ctx_locale.set(lang)
     await callback.message.edit_text(_("Язык обновлён"))
     await callback.answer()
+    start_message = callback.message.model_copy(
+        update={"from_user": callback.from_user, "text": "/start"}
+    )
+    await start_cmd(start_message, state, session)
 
 
 

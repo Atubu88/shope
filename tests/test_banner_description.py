@@ -34,6 +34,11 @@ def test_custom_description_has_priority():
 
 def test_get_default_banner_description_translated():
     i18n.ctx_locale.set("en")
-    assert get_default_banner_description("main") == "Welcome!"
+    result_en = get_default_banner_description("main")
+    assert "Welcome" in result_en
+    assert "More about the bot" in result_en
+
     i18n.ctx_locale.set("ru")
-    assert get_default_banner_description("main") == "Добро пожаловать!"
+    result_ru = get_default_banner_description("main")
+    assert "Добро пожаловать" in result_ru
+    assert "Подробнее о боте" in result_ru

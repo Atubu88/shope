@@ -3,16 +3,25 @@ from typing import Dict
 from aiogram.types import Message
 from aiogram.utils.formatting import Bold, as_list, as_marked_section
 
-from utils.i18n import _  # ✅ единый gettext
+from utils.i18n import _, i18n  # ✅ единый gettext
 
 
 def get_description_for_info_pages(page_key: str):
-    """
-    Возвращает переведённый текст/структуру форматирования по ключу страницы
-    с учётом текущей локали (i18n.ctx_locale).
-    """
     if page_key == "main":
-        return _("Добро пожаловать!")
+        locale = i18n.ctx_locale.get()
+
+        if locale == "en":
+            url = "https://telegra.ph/aucacuva-07-18"  # английская версия
+        else:
+            url = "https://telegra.ph/EHtot-bot--ne-prosto-picceriya-07-18"  # русская версия
+
+        result = (
+            "👋 " + _("Добро пожаловать!") + "\n"
+            + f'<a href="{url}">' + _("Подробнее о боте") + "</a>"
+        )
+        print("DEBUG get_description_for_info_pages:", repr(result))
+        return result
+
     elif page_key == "about":
         return _("Информация о компании.\nРежим работы: ежедневно.")
     elif page_key == "payment":
