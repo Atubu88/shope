@@ -1,20 +1,15 @@
 from typing import Callable, Awaitable, Dict, Any, Optional
 
+import logging
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-import logging
 
 from database.models import User
 from utils.i18n import i18n  # единый экземпляр I18n
 
-# Отладка: покажем, что модуль точно загрузился
-print("[i18n] UserLocaleMiddleware imported")
-
-# Логгер для i18n
-logger = logging.getLogger("i18n")
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 SUPPORTED_LOCALES = {"ru", "en"}
 
@@ -40,16 +35,19 @@ class UserLocaleMiddleware(BaseMiddleware):
         if tg_user is None:
             return await handler(event, data)
 
-        # Отладка: факт входа в миддлварь
-        print("[i18n] middleware called for user:", tg_user.id)
+        # Отладка входа в мидлварь — не шумит в проде при LOG_LEVEL>=INFO
+        logger.debug("UserLocaleMiddleware for user_id=%s", getattr(tg_user, "id", None))
 
         locale: Optional[str] = None
 
-        # 1) FSM (кладём туда 'locale' в хендлерах при выборе языка)
+        # 1) FSM (кладём туда 'locale' при выборе языка)
         state = data.get("state")
         if state:
-            stored = await state.get_data()
-            locale = stored.get("locale")
+            try:
+                stored = await state.get_data()
+                locale = stored.get("locale")
+            except Exception:
+                logger.debug("FSM get_data failed", exc_info=True)
 
         # 2) БД
         if not locale:
@@ -72,11 +70,10 @@ class UserLocaleMiddleware(BaseMiddleware):
         # Установим локаль
         i18n.ctx_locale.set(locale)
 
-        # Двойная отладка — и print, и logging
-        print("[i18n] locale set ->", i18n.ctx_locale.get())
-        logger.info("locale=%s", i18n.ctx_locale.get())
+        # Отладка — уровень DEBUG, чтобы не шуметь в проде
+        logger.debug("locale set -> %s", i18n.ctx_locale.get())
 
-        # (опционально) положим gettext в data
+        # По желанию: положим gettext/i18n в data
         data["i18n"] = i18n
         data["_"] = i18n.gettext
 

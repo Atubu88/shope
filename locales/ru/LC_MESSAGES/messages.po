@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-08-18 21:20+0200\n"
+"POT-Creation-Date: 2025-08-19 00:22+0200\n"
 "PO-Revision-Date: 2025-08-16 15:43+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
@@ -67,36 +67,97 @@ msgstr "Каталог товаров и услуг:"
 msgid "В корзине пока нет товаров."
 msgstr "В корзине пока нет товаров."
 
-#: handlers/invite_creation.py:121 handlers/invite_creation.py:147
+#: handlers/invite_creation.py:110
+msgid "📞 Отправить контакт"
+msgstr "📞 Отправить контакт"
+
+#: handlers/invite_creation.py:136 handlers/invite_creation.py:181
 msgid "Введите название салона:"
 msgstr "Введите название салона:"
 
-#: handlers/invite_creation.py:127 handlers/user_private.py:51
+#: handlers/invite_creation.py:142 handlers/invite_creation.py:194
+#: handlers/user_private.py:51
 msgid "Русский"
 msgstr "Русский"
 
-#: handlers/invite_creation.py:128 handlers/user_private.py:52
+#: handlers/invite_creation.py:143 handlers/invite_creation.py:195
+#: handlers/user_private.py:52
 msgid "English"
 msgstr "English"
 
-#: handlers/invite_creation.py:130 handlers/invite_creation.py:162
-#: handlers/user_private.py:55
+#: handlers/invite_creation.py:145 handlers/invite_creation.py:188
+#: handlers/invite_creation.py:197 handlers/user_private.py:55
 msgid "Выберите язык"
 msgstr "Выберите язык"
 
+#: handlers/invite_creation.py:204
+msgid "Название слишком короткое, попробуйте ещё раз"
+msgstr "Название слишком короткое, попробуйте ещё раз"
+
+#: handlers/invite_creation.py:207
+msgid "Введите slug или '-' для автоматического создания"
+msgstr "Введите slug или '-' для автоматического создания"
+
+#: handlers/invite_creation.py:213
+msgid "Отправьте текстовое название или 'отмена'"
+msgstr "Отправьте текстовое название или 'отмена'"
+
+#: handlers/invite_creation.py:224
+msgid "Выберите валюту салона:"
+msgstr "Выберите валюту салона:"
+
+#: handlers/invite_creation.py:230
+msgid "Введите slug текстом или '-' для авто"
+msgstr "Введите slug текстом или '-' для авто"
+
+#: handlers/invite_creation.py:238
+msgid "Выберите ваш часовой пояс:"
+msgstr "Выберите ваш часовой пояс:"
+
+#: handlers/invite_creation.py:245
+msgid "Используйте кнопки для выбора валюты"
+msgstr "Используйте кнопки для выбора валюты"
+
+#: handlers/invite_creation.py:256
+msgid "Отправьте контакт владельца салона:"
+msgstr "Отправьте контакт владельца салона:"
+
+#: handlers/invite_creation.py:265
+msgid "Пожалуйста, выберите тайм-зону кнопками"
+msgstr "Пожалуйста, выберите тайм-зону кнопками"
+
+#: handlers/invite_creation.py:286
+msgid "Салон с таким названием или слагом уже существует."
+msgstr "Салон с таким названием или слагом уже существует."
+
+#: handlers/invite_creation.py:315
+#, python-brace-format
+msgid ""
+"Салон '{name}' создан!\n"
+"Часовой пояс: {timezone}\n"
+"{link}"
+msgstr ""
+"Салон '{name}' создан!\n"
+"Часовой пояс: {timezone}\n"
+"{link}"
+
+#: handlers/invite_creation.py:328
+msgid "Пожалуйста, отправьте контакт кнопкой ниже"
+msgstr "Пожалуйста, отправьте контакт кнопкой ниже"
+
 #: handlers/menu_processing.py:110
 msgid "◀ Пред."
-msgstr ""
+msgstr "◀ Пред."
 
 #: handlers/menu_processing.py:112
 msgid "След. ▶"
-msgstr ""
+msgstr "След. ▶"
 
 #: handlers/menu_processing.py:133
 msgid ""
 "В этой категории пока нет товаров. Попробуйте позже или выберите другую "
 "категорию."
-msgstr ""
+msgstr "В этой категории пока нет товаров. Попробуйте позже или выберите другую категорию."
 
 #: handlers/menu_processing.py:144
 #, python-brace-format
@@ -105,15 +166,18 @@ msgid ""
 "{description}\n"
 "Стоимость: {price}{currency}\n"
 msgstr ""
+"<strong>{name}</strong>\n"
+"{description}\n"
+"Стоимость: {price}{currency}\n"
 
 #: handlers/menu_processing.py:150
 #, python-brace-format
 msgid "<strong>Товар {page} из {pages}</strong>"
-msgstr ""
+msgstr "<strong>Товар {page} из {pages}</strong>"
 
 #: handlers/menu_processing.py:171
 msgid "Произошла непредвиденная ошибка при загрузке товаров. Попробуйте позже."
-msgstr ""
+msgstr "Произошла непредвиденная ошибка при загрузке товаров. Попробуйте позже."
 
 #: handlers/menu_processing.py:224
 #, python-brace-format
@@ -121,6 +185,8 @@ msgid ""
 "<strong>{name}</strong>\n"
 "{price}{currency} x {qty} = {sum}{currency}\n"
 msgstr ""
+"<strong>{name}</strong>\n"
+"{price}{currency} x {qty} = {sum}{currency}\n"
 
 #: handlers/menu_processing.py:231
 #, python-brace-format
@@ -128,92 +194,98 @@ msgid ""
 "Товар {page} из {pages} в корзине.\n"
 "Общая стоимость: {total}{currency}"
 msgstr ""
+"Товар {page} из {pages} в корзине.\n"
+"Общая стоимость: {total}{currency}"
 
 #: handlers/order_processing.py:37
 msgid "Курьер"
-msgstr ""
+msgstr "Курьер"
 
 #: handlers/order_processing.py:38
 msgid "Самовывоз"
-msgstr ""
+msgstr "Самовывоз"
 
 #: handlers/order_processing.py:39
 msgid "⬅️ Назад в корзину"
-msgstr ""
+msgstr "⬅️ Назад в корзину"
 
 #: handlers/order_processing.py:44
 msgid "✅ Подтвердить заказ"
-msgstr ""
+msgstr "✅ Подтвердить заказ"
 
 #: handlers/order_processing.py:45 kbds/inline.py:62 kbds/inline.py:99
 msgid "Назад"
-msgstr ""
+msgstr "Назад"
 
 #: handlers/order_processing.py:51
 msgid "📍 Отправить геолокацию"
-msgstr ""
+msgstr "📍 Отправить геолокацию"
 
 #: handlers/order_processing.py:52 handlers/order_processing.py:66
 #: handlers/order_processing.py:74
 msgid "⬅️ Назад"
-msgstr ""
+msgstr "⬅️ Назад"
 
 #: handlers/order_processing.py:60
 msgid "✅ Да"
-msgstr ""
+msgstr "✅ Да"
 
 #: handlers/order_processing.py:61
 msgid "✏️ Ввести вручную"
-msgstr ""
+msgstr "✏️ Ввести вручную"
 
 #: handlers/order_processing.py:72
 msgid "📞 Отправить номер телефона"
-msgstr ""
+msgstr "📞 Отправить номер телефона"
 
 #: handlers/order_processing.py:92 handlers/order_processing.py:226
 #: handlers/order_processing.py:402
-#, fuzzy
 msgid "Выберите способ доставки:"
-msgstr "Выберите салон:"
+msgstr "Выберите способ доставки:"
 
 #: handlers/order_processing.py:119
 msgid "Пожалуйста, отправьте геолокацию для расчёта стоимости доставки."
-msgstr ""
+msgstr "Пожалуйста, отправьте геолокацию для расчёта стоимости доставки."
 
 #: handlers/order_processing.py:125
 msgid "Отправьте геолокацию кнопкой ниже ⬇️"
-msgstr ""
+msgstr "Отправьте геолокацию кнопкой ниже ⬇️"
 
 #: handlers/order_processing.py:152
 msgid "Ошибка: координаты салона не заданы."
-msgstr ""
+msgstr "Ошибка: координаты салона не заданы."
 
 #: handlers/order_processing.py:162
 #, python-brace-format
 msgid "Геолокация ({lat:.5f}, {lon:.5f})"
-msgstr ""
+msgstr "Геолокация ({lat:.5f}, {lon:.5f})"
+
 
 #: handlers/order_processing.py:193
-#, fuzzy, python-brace-format
+#, python-brace-format
 msgid ""
 "Вы находитесь по адресу:\n"
 "<b>{address}</b>\n"
 "Всё верно?"
-msgstr "Вы находитесь в салоне: <b>{name}</b>"
+msgstr ""
+"Вы находитесь по адресу:\n"
+"<b>{address}</b>\n"
+"Всё верно?"
+
 
 #: handlers/order_processing.py:241
 msgid "Пожалуйста, введите корректный адрес."
-msgstr ""
+msgstr "Пожалуйста, введите корректный адрес."
 
 #: handlers/order_processing.py:248 handlers/order_processing.py:275
 #: handlers/order_processing.py:375
 msgid "Пожалуйста, укажите номер квартиры (или подъезда, офиса):"
-msgstr ""
+msgstr "Пожалуйста, укажите номер квартиры (или подъезда, офиса):"
 
 #: handlers/order_processing.py:300
 #, python-brace-format
 msgid ", кв./офис {apt}"
-msgstr ""
+msgstr ", кв./офис {apt}"
 
 #: handlers/order_processing.py:314 handlers/order_processing.py:624
 #: handlers/order_processing.py:653
@@ -221,18 +293,19 @@ msgid ""
 "Пожалуйста, введите ваш номер телефона или отправьте контакт кнопкой ниже"
 " 👇"
 msgstr ""
+"Пожалуйста, введите ваш номер телефона или отправьте контакт кнопкой ниже 👇"
 
 #: handlers/order_processing.py:335
 msgid "Пожалуйста, введите адрес вручную:"
-msgstr ""
+msgstr "Пожалуйста, введите адрес вручную:"
 
 #: handlers/order_processing.py:437
 msgid "Спасибо, номер получен!"
-msgstr ""
+msgstr "Спасибо, номер получен!"
 
 #: handlers/order_processing.py:445
 msgid "Проверьте все данные и подтвердите заказ!"
-msgstr ""
+msgstr "Проверьте все данные и подтвердите заказ!"
 
 #: handlers/order_processing.py:477
 #, python-brace-format
@@ -240,39 +313,40 @@ msgid ""
 "Вы достигли лимита бесплатного тарифа ({limit} заказов). Чтобы продолжить"
 " приём заказов, продлите подписку."
 msgstr ""
+"Вы достигли лимита бесплатного тарифа ({limit} заказов). Чтобы продолжить приём заказов, продлите подписку."
 
 #: handlers/order_processing.py:501
 msgid "Спасибо! Ваш заказ принят 👍"
-msgstr ""
+msgstr "Спасибо! Ваш заказ принят 👍"
 
 #: handlers/order_processing.py:504
 msgid "Ваша корзина пуста или не выбран салон. Заказ не оформлен."
-msgstr ""
+msgstr "Ваша корзина пуста или не выбран салон. Заказ не оформлен."
 
 #: handlers/order_processing.py:523
 msgid "Не удалось определить салон. Пожалуйста, выберите салон."
-msgstr ""
+msgstr "Не удалось определить салон. Пожалуйста, выберите салон."
 
 #: handlers/order_processing.py:582
 msgid "Открыть на карте"
-msgstr ""
+msgstr "Открыть на карте"
 
 #: handlers/order_processing.py:586
 msgid "Адрес салона не указан"
-msgstr ""
+msgstr "Адрес салона не указан"
 
 #: handlers/user_private.py:63
 msgid "Язык обновлён"
 msgstr "Язык обновлён"
 
 #: handlers/user_private.py:102
-#, fuzzy
 msgid ""
 "✅ Вы стали суперадмином.\n"
 "Создайте первый салон командой /create_salon"
 msgstr ""
 "✅ Вы стали суперадмином.\n"
-"Создайте первый салон командой /create_sалон"
+"Создайте первый салон командой /create_salon"
+
 
 #: handlers/user_private.py:105
 msgid "Салонов пока нет. Обратитесь к администратору."
@@ -333,53 +407,52 @@ msgstr "Ошибка при загрузке товара."
 
 #: kbds/inline.py:25
 msgid "Товары 🛍️"
-msgstr ""
+msgstr "Товары 🛍️"
 
 #: kbds/inline.py:26 kbds/inline.py:68 kbds/inline.py:105
 msgid "Корзина 🛒"
-msgstr ""
+msgstr "Корзина 🛒"
 
 #: kbds/inline.py:27
 msgid "О нас ℹ️"
-msgstr ""
+msgstr "О нас ℹ️"
 
 #: kbds/inline.py:28
 msgid "Оплата 💰"
-msgstr ""
+msgstr "Оплата 💰"
 
 #: kbds/inline.py:29
 msgid "Доставка ⛵"
-msgstr ""
+msgstr "Доставка ⛵"
 
 #: kbds/inline.py:111
 msgid "Купить 💵"
-msgstr ""
+msgstr "Купить 💵"
 
 #: kbds/inline.py:151
 msgid "Удалить"
-msgstr ""
+msgstr "Удалить"
 
 #: kbds/inline.py:189 kbds/inline.py:201
 msgid "На главную 🏠"
-msgstr ""
+msgstr "На главную 🏠"
 
 #: kbds/inline.py:193
 msgid "Заказать"
-msgstr ""
+msgstr "Заказать"
 
 #: kbds/inline.py:227
 msgid "Добавить товар"
-msgstr ""
+msgstr "Добавить товар"
 
 #: kbds/inline.py:228
 msgid "Ассортимент"
-msgstr ""
+msgstr "Ассортимент"
 
 #: kbds/inline.py:229
 msgid "Добавить/Изменить баннер"
-msgstr ""
+msgstr "Добавить/Изменить баннер"
 
-#: kbds/inline.py:230
-msgid "Создать салон"
-msgstr ""
+#~ msgid "Создать салон"
+#~ msgstr ""
 

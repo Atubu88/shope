@@ -64,6 +64,7 @@ async def set_language(callback: types.CallbackQuery, session: AsyncSession):
     await callback.answer()
 
 
+
 @user_private_router.message(CommandStart(), ~InviteFilter())
 async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSession):
     await state.clear()

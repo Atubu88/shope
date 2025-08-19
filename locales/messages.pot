@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-08-18 21:20+0200\n"
+"POT-Creation-Date: 2025-08-19 00:22+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -63,21 +63,79 @@ msgstr ""
 msgid "В корзине пока нет товаров."
 msgstr ""
 
-#: handlers/invite_creation.py:121 handlers/invite_creation.py:147
+#: handlers/invite_creation.py:110
+msgid "📞 Отправить контакт"
+msgstr ""
+
+#: handlers/invite_creation.py:136 handlers/invite_creation.py:181
 msgid "Введите название салона:"
 msgstr ""
 
-#: handlers/invite_creation.py:127 handlers/user_private.py:51
+#: handlers/invite_creation.py:142 handlers/invite_creation.py:194
+#: handlers/user_private.py:51
 msgid "Русский"
 msgstr ""
 
-#: handlers/invite_creation.py:128 handlers/user_private.py:52
+#: handlers/invite_creation.py:143 handlers/invite_creation.py:195
+#: handlers/user_private.py:52
 msgid "English"
 msgstr ""
 
-#: handlers/invite_creation.py:130 handlers/invite_creation.py:162
-#: handlers/user_private.py:55
+#: handlers/invite_creation.py:145 handlers/invite_creation.py:188
+#: handlers/invite_creation.py:197 handlers/user_private.py:55
 msgid "Выберите язык"
+msgstr ""
+
+#: handlers/invite_creation.py:204
+msgid "Название слишком короткое, попробуйте ещё раз"
+msgstr ""
+
+#: handlers/invite_creation.py:207
+msgid "Введите slug или '-' для автоматического создания"
+msgstr ""
+
+#: handlers/invite_creation.py:213
+msgid "Отправьте текстовое название или 'отмена'"
+msgstr ""
+
+#: handlers/invite_creation.py:224
+msgid "Выберите валюту салона:"
+msgstr ""
+
+#: handlers/invite_creation.py:230
+msgid "Введите slug текстом или '-' для авто"
+msgstr ""
+
+#: handlers/invite_creation.py:238
+msgid "Выберите ваш часовой пояс:"
+msgstr ""
+
+#: handlers/invite_creation.py:245
+msgid "Используйте кнопки для выбора валюты"
+msgstr ""
+
+#: handlers/invite_creation.py:256
+msgid "Отправьте контакт владельца салона:"
+msgstr ""
+
+#: handlers/invite_creation.py:265
+msgid "Пожалуйста, выберите тайм-зону кнопками"
+msgstr ""
+
+#: handlers/invite_creation.py:286
+msgid "Салон с таким названием или слагом уже существует."
+msgstr ""
+
+#: handlers/invite_creation.py:315
+#, python-brace-format
+msgid ""
+"Салон '{name}' создан!\n"
+"Часовой пояс: {timezone}\n"
+"{link}"
+msgstr ""
+
+#: handlers/invite_creation.py:328
+msgid "Пожалуйста, отправьте контакт кнопкой ниже"
 msgstr ""
 
 #: handlers/menu_processing.py:110
@@ -367,9 +425,5 @@ msgstr ""
 
 #: kbds/inline.py:229
 msgid "Добавить/Изменить баннер"
-msgstr ""
-
-#: kbds/inline.py:230
-msgid "Создать салон"
 msgstr ""
 

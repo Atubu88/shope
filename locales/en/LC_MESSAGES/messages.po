@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-08-18 21:20+0200\n"
+"POT-Creation-Date: 2025-08-19 00:22+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -66,22 +66,84 @@ msgstr "Catalog of products and services:"
 msgid "В корзине пока нет товаров."
 msgstr "Your cart is empty."
 
-#: handlers/invite_creation.py:121 handlers/invite_creation.py:147
+#: handlers/invite_creation.py:110
+#, fuzzy
+msgid "📞 Отправить контакт"
+msgstr "📞 Send phone number"
+
+#: handlers/invite_creation.py:136 handlers/invite_creation.py:181
 msgid "Введите название салона:"
 msgstr "Enter the salon name:"
 
-#: handlers/invite_creation.py:127 handlers/user_private.py:51
+#: handlers/invite_creation.py:142 handlers/invite_creation.py:194
+#: handlers/user_private.py:51
 msgid "Русский"
 msgstr "Russian"
 
-#: handlers/invite_creation.py:128 handlers/user_private.py:52
+#: handlers/invite_creation.py:143 handlers/invite_creation.py:195
+#: handlers/user_private.py:52
 msgid "English"
 msgstr "English"
 
-#: handlers/invite_creation.py:130 handlers/invite_creation.py:162
-#: handlers/user_private.py:55
+#: handlers/invite_creation.py:145 handlers/invite_creation.py:188
+#: handlers/invite_creation.py:197 handlers/user_private.py:55
 msgid "Выберите язык"
 msgstr "Choose a language"
+
+#: handlers/invite_creation.py:204
+msgid "Название слишком короткое, попробуйте ещё раз"
+msgstr "The name is too short, please try again"
+
+#: handlers/invite_creation.py:207
+msgid "Введите slug или '-' для автоматического создания"
+msgstr "Enter a slug or '-' for automatic creation"
+
+#: handlers/invite_creation.py:213
+msgid "Отправьте текстовое название или 'отмена'"
+msgstr "Send a text name or 'cancel'"
+
+#: handlers/invite_creation.py:224
+msgid "Выберите валюту салона:"
+msgstr "Choose the salon's currency:"
+
+#: handlers/invite_creation.py:230
+msgid "Введите slug текстом или '-' для авто"
+msgstr "Enter slug as text or '-' for auto"
+
+#: handlers/invite_creation.py:238
+msgid "Выберите ваш часовой пояс:"
+msgstr "Choose your time zone:"
+
+#: handlers/invite_creation.py:245
+msgid "Используйте кнопки для выбора валюты"
+msgstr "Use the buttons to choose a currency"
+
+#: handlers/invite_creation.py:256
+msgid "Отправьте контакт владельца салона:"
+msgstr "Send the salon owner's contact:"
+
+#: handlers/invite_creation.py:265
+msgid "Пожалуйста, выберите тайм-зону кнопками"
+msgstr "Please select a time zone using the buttons"
+
+#: handlers/invite_creation.py:286
+msgid "Салон с таким названием или слагом уже существует."
+msgstr "A salon with this name or slug already exists."
+
+#: handlers/invite_creation.py:315
+#, python-brace-format
+msgid ""
+"Салон '{name}' создан!\n"
+"Часовой пояс: {timezone}\n"
+"{link}"
+msgstr ""
+"Salon '{name}' has been created!\n"
+"Time zone: {timezone}\n"
+"{link}"
+
+#: handlers/invite_creation.py:328
+msgid "Пожалуйста, отправьте контакт кнопкой ниже"
+msgstr "Please send the contact using the button below"
 
 #: handlers/menu_processing.py:110
 msgid "◀ Пред."
@@ -230,8 +292,11 @@ msgstr ", apt/office {apt}"
 #: handlers/order_processing.py:314 handlers/order_processing.py:624
 #: handlers/order_processing.py:653
 msgid ""
-"Пожалуйста, введите ваш номер телефона или отправьте контакт кнопкой ниже 👇"
-msgstr "Please enter your phone number or send your contact with the button below 👇"
+"Пожалуйста, введите ваш номер телефона или отправьте контакт кнопкой ниже"
+" 👇"
+msgstr ""
+"Please enter your phone number or send your contact with the button below"
+" 👇"
 
 #: handlers/order_processing.py:335
 msgid "Пожалуйста, введите адрес вручную:"
@@ -248,8 +313,11 @@ msgstr "Check all the details and confirm your order!"
 #: handlers/order_processing.py:477
 #, python-brace-format
 msgid ""
-"Вы достигли лимита бесплатного тарифа ({limit} заказов). Чтобы продолжить приём заказов, продлите подписку."
-msgstr "You have reached the free plan limit ({limit} orders). To continue receiving orders, please renew your subscription."
+"Вы достигли лимита бесплатного тарифа ({limit} заказов). Чтобы продолжить"
+" приём заказов, продлите подписку."
+msgstr ""
+"You have reached the free plan limit ({limit} orders). To continue "
+"receiving orders, please renew your subscription."
 
 #: handlers/order_processing.py:501
 msgid "Спасибо! Ваш заказ принят 👍"
@@ -387,5 +455,4 @@ msgstr "Product Range"
 #: kbds/inline.py:229
 msgid "Добавить/Изменить баннер"
 msgstr "Add/Change Banner"
-
 

@@ -6,15 +6,17 @@ from dotenv import find_dotenv, load_dotenv
 # Сразу грузим .env
 load_dotenv(find_dotenv())
 
-# Базовая настройка логгера
+# Базовая настройка логгера (единая для всего проекта)
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, log_level, logging.INFO),
     format="%(asctime)s %(levelname)s:%(name)s:%(message)s",
 )
 
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.bot import DefaultBotProperties
+from aiogram.types.error_event import ErrorEvent
 
 # 🟢 Middleware
 from middlewares.db import DataBaseSession
@@ -36,10 +38,15 @@ from handlers.inline_mode import inline_router
 from handlers.invite_creation import invite_creation_router
 from handlers.invite_link import invite_link_router
 
-# ВАЖНО: не создаём новый I18n здесь — используем utils/i18n
+# ✅ Проверка токена заранее
+TOKEN = os.getenv("TOKEN")
+if not TOKEN:
+    logging.critical("TOKEN is not set")
+    raise SystemExit(1)
 
+# ВАЖНО: не создаём новый I18n здесь — используем utils/i18n
 bot = Bot(
-    token=os.getenv("TOKEN"),
+    token=TOKEN,
     default=DefaultBotProperties(parse_mode=ParseMode.HTML),
 )
 
@@ -62,16 +69,22 @@ dp.include_router(invite_creation_router)
 
 
 async def on_startup(bot: Bot):
-    print("✅ Бот запущен")
+    logging.info("✅ Бот запущен")
 
 
 async def on_shutdown(bot: Bot):
-    print("❌ Бот остановлен")
+    logging.info("❌ Бот остановлен")
+
+
+async def on_error(event: ErrorEvent):
+    # Глобальный лог необработанных ошибок
+    logging.exception("Unhandled error: %s", event)
 
 
 async def main():
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)
+    dp.errors.register(on_error)
 
     # 1) сначала БД — кладёт session в data
     dp.update.middleware(DataBaseSession(session_pool=session_maker))
@@ -85,4 +98,8 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception:
+        logging.exception("Fatal error in main")
+        raise
