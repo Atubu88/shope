@@ -13,7 +13,7 @@ from database.orm_query import (
     orm_get_categories,
     orm_get_products,
     orm_delete_product,
-    orm_change_product_image,
+    orm_update_product,
     orm_get_salon_by_id, orm_get_product,
 )
 from utils.currency import get_currency_symbol
@@ -23,8 +23,11 @@ products_router = Router()
 
 
 # ---------- FSM ----------
-class EditPhotoFSM(StatesGroup):
-    waiting_for_photo = State()
+class EditProductFSM(StatesGroup):
+    name = State()
+    description = State()
+    price = State()
+    photo = State()
 
 
 # ---------- КЛАВИАТУРЫ ----------
@@ -172,39 +175,115 @@ async def delete_product(callback: CallbackQuery, state: FSMContext, session: As
 
 
 @products_router.callback_query(F.data.startswith("edit_prod_"))
-async def edit_product(callback: CallbackQuery, state: FSMContext):
-    await state.set_state(EditPhotoFSM.waiting_for_photo)
-    await state.update_data(edit_product_id=int(callback.data.split("_")[-1]))
-    await callback.message.answer("Отправьте новое фото товара или отмените командой /cancel")
+async def edit_product(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    salon_id = (await state.get_data()).get("salon_id")
+    product_id = int(callback.data.split("_")[-1])
+    product = await orm_get_product(session, product_id, salon_id)
+    if not product:
+        await callback.answer("Товар не найден", show_alert=True)
+        return
+    await state.set_state(EditProductFSM.name)
+    await state.update_data(
+        edit_product_id=product_id,
+        category=product.category_id,
+        old_image=product.image,
+        salon_id=salon_id,
+    )
+    await callback.message.answer(
+        "Введите новое название товара или отмените командой /cancel"
+    )
     await callback.answer()
 
-
-@products_router.message(EditPhotoFSM.waiting_for_photo, F.photo)
-async def save_new_photo(message: Message, state: FSMContext, session: AsyncSession):
-    data = await state.get_data()
-    photo_url = await upload_photo_from_telegram(message.bot, message.photo[-1].file_id)
-    await orm_change_product_image(
-        session,
-        data["edit_product_id"],
-        photo_url,
-        data["salon_id"],
-    )
-
+@products_router.message(EditProductFSM, F.text.lower().in_({"/cancel", "отмена"}))
+async def cancel_edit(message: Message, state: FSMContext, session: AsyncSession):
+    salon_id = (await state.get_data()).get("salon_id")
     await state.clear()
-    await message.answer("Фото товара обновлено ✅")
+    await state.update_data(salon_id=salon_id)
+    await message.answer("Отменено")
     await show_admin_menu(state, message.chat.id, message.bot, session)
 
 
-@products_router.message(EditPhotoFSM.waiting_for_photo)
-async def cancel_edit(message: Message, state: FSMContext, session: AsyncSession):
-    if message.text and message.text.lower() in {"/cancel", "отмена"}:
-        salon_id = (await state.get_data()).get("salon_id")
-        await state.clear()
-        await state.update_data(salon_id=salon_id)
-        await message.answer("Отменено")
-        await show_admin_menu(state, message.chat.id, message.bot, session)
-    else:
-        await message.answer("Пришлите фотографию или отправьте /cancel")
+
+@products_router.message(EditProductFSM.name, F.text)
+async def edit_name(message: Message, state: FSMContext):
+    name = message.text.strip()
+    if not name:
+        await message.answer("Название не может быть пустым.")
+        return
+    await state.update_data(name=name)
+    await state.set_state(EditProductFSM.description)
+    await message.answer("Введите новое описание товара:")
+
+
+@products_router.message(EditProductFSM.name)
+async def invalid_name(message: Message):
+    await message.answer("Отправьте название текстом или /cancel")
+
+
+@products_router.message(EditProductFSM.description, F.text)
+async def edit_description(message: Message, state: FSMContext):
+    desc = message.text.strip()
+    if not desc:
+        await message.answer("Описание не может быть пустым.")
+        return
+    await state.update_data(description=desc)
+    await state.set_state(EditProductFSM.price)
+    await message.answer("Введите новую цену товара:")
+
+
+@products_router.message(EditProductFSM.description)
+async def invalid_description(message: Message):
+    await message.answer("Отправьте описание текстом или /cancel")
+
+
+@products_router.message(EditProductFSM.price, F.text)
+async def edit_price(message: Message, state: FSMContext):
+    text = message.text.replace(",", ".").strip()
+    try:
+        price = float(text)
+    except ValueError:
+        await message.answer("Введите корректную цену.")
+        return
+    await state.update_data(price=price)
+    await state.set_state(EditProductFSM.photo)
+    await message.answer("Отправьте новое фото товара:")
+
+
+@products_router.message(EditProductFSM.price)
+async def invalid_price(message: Message):
+    await message.answer("Введите цену числом или /cancel")
+
+
+@products_router.message(EditProductFSM.photo, F.photo)
+async def save_edited_product(message: Message, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    photo_url = await upload_photo_from_telegram(message.bot, message.photo[-1].file_id)
+    if data.get("old_image"):
+        filename = get_path_from_url(data["old_image"])
+        try:
+            await delete_photo_from_supabase(filename)
+        except Exception as e:
+            print(f"Ошибка при удалении фото из Supabase: {e}")
+    await orm_update_product(
+        session,
+        data["edit_product_id"],
+        {
+            "name": data["name"],
+            "description": data["description"],
+            "price": data["price"],
+            "image": photo_url,
+            "category": data["category"],
+        },
+        data["salon_id"],
+    )
+    await state.clear()
+    await message.answer("Товар обновлён ✅")
+    await show_admin_menu(state, message.chat.id, message.bot, session)
+
+
+@products_router.message(EditProductFSM.photo)
+async def invalid_photo(message: Message):
+    await message.answer("Пришлите фотографию или /cancel")
 
 
 # ---------- ГЛАВНОЕ: «⬅️ В меню» из ассортимента ----------
