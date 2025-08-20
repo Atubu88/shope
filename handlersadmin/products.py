@@ -8,13 +8,14 @@ from aiogram.types import (
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from sqlalchemy.ext.asyncio import AsyncSession
-from utils.supabase_storage import upload_photo_from_telegram, get_path_from_url, delete_photo_from_supabase
+from utils.supabase_storage import get_path_from_url, delete_photo_from_supabase
 from database.orm_query import (
     orm_get_categories,
     orm_get_products,
     orm_delete_product,
-    orm_change_product_image,
-    orm_get_salon_by_id, orm_get_product,
+    orm_get_salon_by_id,
+    orm_get_product,
+    orm_change_product_field,
 )
 from utils.currency import get_currency_symbol
 from .menu import show_admin_menu
@@ -23,8 +24,10 @@ products_router = Router()
 
 
 # ---------- FSM ----------
-class EditPhotoFSM(StatesGroup):
-    waiting_for_photo = State()
+class EditProductFSM(StatesGroup):
+    waiting_for_name = State()
+    waiting_for_description = State()
+    waiting_for_price = State()
 
 
 # ---------- КЛАВИАТУРЫ ----------
@@ -39,14 +42,15 @@ def product_category_kb(categories) -> InlineKeyboardMarkup:
 def product_action_kb(product_id) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            # !!! та же уникальная «назад»‑кнопка
             [InlineKeyboardButton(text="⬅️ В меню", callback_data="prod_back")],
-            [
-                InlineKeyboardButton(text="✏️ Изменить",
-                                     callback_data=f"edit_prod_{product_id}"),
-                InlineKeyboardButton(text="🗑️ Удалить",
-                                     callback_data=f"delete_prod_{product_id}")
-            ],
+            [InlineKeyboardButton(text="✏️ Изменить название",
+                                 callback_data=f"edit_name_{product_id}")],
+            [InlineKeyboardButton(text="✏️ Изменить описание",
+                                 callback_data=f"edit_desc_{product_id}")],
+            [InlineKeyboardButton(text="✏️ Изменить цену",
+                                 callback_data=f"edit_price_{product_id}")],
+            [InlineKeyboardButton(text="🗑️ Удалить",
+                                 callback_data=f"delete_prod_{product_id}")],
         ]
     )
 
@@ -170,41 +174,113 @@ async def delete_product(callback: CallbackQuery, state: FSMContext, session: As
     except Exception:
         pass
 
-
-@products_router.callback_query(F.data.startswith("edit_prod_"))
-async def edit_product(callback: CallbackQuery, state: FSMContext):
-    await state.set_state(EditPhotoFSM.waiting_for_photo)
+# ---------- РЕДАКТИРОВАНИЕ ТОВАРА ----------
+@products_router.callback_query(F.data.startswith("edit_name_"))
+async def edit_name(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(EditProductFSM.waiting_for_name)
     await state.update_data(edit_product_id=int(callback.data.split("_")[-1]))
-    await callback.message.answer("Отправьте новое фото товара или отмените командой /cancel")
+    await callback.message.answer("Введите новое название товара или /cancel")
     await callback.answer()
 
 
-@products_router.message(EditPhotoFSM.waiting_for_photo, F.photo)
-async def save_new_photo(message: Message, state: FSMContext, session: AsyncSession):
-    data = await state.get_data()
-    photo_url = await upload_photo_from_telegram(message.bot, message.photo[-1].file_id)
-    await orm_change_product_image(
-        session,
-        data["edit_product_id"],
-        photo_url,
-        data["salon_id"],
-    )
-
-    await state.clear()
-    await message.answer("Фото товара обновлено ✅")
-    await show_admin_menu(state, message.chat.id, message.bot, session)
+@products_router.callback_query(F.data.startswith("edit_desc_"))
+async def edit_description(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(EditProductFSM.waiting_for_description)
+    await state.update_data(edit_product_id=int(callback.data.split("_")[-1]))
+    await callback.message.answer("Введите новое описание товара или /cancel")
+    await callback.answer()
 
 
-@products_router.message(EditPhotoFSM.waiting_for_photo)
-async def cancel_edit(message: Message, state: FSMContext, session: AsyncSession):
-    if message.text and message.text.lower() in {"/cancel", "отмена"}:
+@products_router.callback_query(F.data.startswith("edit_price_"))
+async def edit_price(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(EditProductFSM.waiting_for_price)
+    await state.update_data(edit_product_id=int(callback.data.split("_")[-1]))
+    await callback.message.answer("Введите новую цену товара или /cancel")
+    await callback.answer()
+
+
+@products_router.message(EditProductFSM.waiting_for_name, F.text)
+async def save_new_name(message: Message, state: FSMContext, session: AsyncSession):
+    text = message.text.strip()
+    if text.lower() in {"/cancel", "отмена"}:
         salon_id = (await state.get_data()).get("salon_id")
         await state.clear()
         await state.update_data(salon_id=salon_id)
         await message.answer("Отменено")
         await show_admin_menu(state, message.chat.id, message.bot, session)
-    else:
-        await message.answer("Пришлите фотографию или отправьте /cancel")
+        return
+    if not text:
+        await message.answer("Название не может быть пустым. Введите новое название или /cancel")
+        return
+    data = await state.get_data()
+    await orm_change_product_field(
+        session,
+        data["edit_product_id"],
+        data["salon_id"],
+        name=text,
+    )
+    await state.clear()
+    await message.answer("Название товара обновлено ✅")
+    await show_admin_menu(state, message.chat.id, message.bot, session)
+
+
+@products_router.message(EditProductFSM.waiting_for_description, F.text)
+async def save_new_description(message: Message, state: FSMContext, session: AsyncSession):
+    text = message.text.strip()
+    if text.lower() in {"/cancel", "отмена"}:
+        salon_id = (await state.get_data()).get("salon_id")
+        await state.clear()
+        await state.update_data(salon_id=salon_id)
+        await message.answer("Отменено")
+        await show_admin_menu(state, message.chat.id, message.bot, session)
+        return
+    if not text:
+        await message.answer("Описание не может быть пустым. Введите новое описание или /cancel")
+        return
+    data = await state.get_data()
+    await orm_change_product_field(
+        session,
+        data["edit_product_id"],
+        data["salon_id"],
+        description=text,
+    )
+    await state.clear()
+    await message.answer("Описание товара обновлено ✅")
+    await show_admin_menu(state, message.chat.id, message.bot, session)
+
+
+@products_router.message(EditProductFSM.waiting_for_price, F.text)
+async def save_new_price(message: Message, state: FSMContext, session: AsyncSession):
+    text = message.text.replace(",", ".").strip()
+    if text.lower() in {"/cancel", "отмена"}:
+        salon_id = (await state.get_data()).get("salon_id")
+        await state.clear()
+        await state.update_data(salon_id=salon_id)
+        await message.answer("Отменено")
+        await show_admin_menu(state, message.chat.id, message.bot, session)
+        return
+    try:
+        price = float(text)
+    except ValueError:
+        await message.answer("Введите корректную цену или /cancel")
+        return
+    data = await state.get_data()
+    await orm_change_product_field(
+        session,
+        data["edit_product_id"],
+        data["salon_id"],
+        price=price,
+    )
+    await state.clear()
+    await message.answer("Цена товара обновлена ✅")
+    await show_admin_menu(state, message.chat.id, message.bot, session)
+
+
+@products_router.message(EditProductFSM.waiting_for_name)
+@products_router.message(EditProductFSM.waiting_for_description)
+@products_router.message(EditProductFSM.waiting_for_price)
+async def invalid_edit_input(message: Message):
+    await message.answer("Отправьте текстовое значение или /cancel")
 
 
 # ---------- ГЛАВНОЕ: «⬅️ В меню» из ассортимента ----------
