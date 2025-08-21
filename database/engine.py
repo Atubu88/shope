@@ -1,14 +1,14 @@
 import os
+
+from dotenv import load_dotenv
+load_dotenv()  # загрузит переменные из .env
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from database.models import Base
 
 
 
-
-# from .env file:
-# DB_LITE=sqlite+aiosqlite:///my_base.db
-# DB_URL=postgresql+asyncpg://login:password@localhost:5432/db_name
 
 db_url = os.getenv("DB_URL")
 if not db_url:

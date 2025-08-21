@@ -255,6 +255,25 @@ async def orm_change_product_image(session: AsyncSession, product_id: int, image
     await session.execute(query)
     await session.commit()
 
+async def orm_change_product_field(
+    session: AsyncSession,
+    product_id: int,
+    salon_id: int,
+    **fields,
+):
+    """Update specific fields of a product.
+
+    Parameters are passed as keyword arguments, e.g. ``name="New name"``.
+    """
+    query = (
+        update(Product)
+        .where(Product.id == product_id, Product.salon_id == salon_id)
+        .values(**fields)
+    )
+    await session.execute(query)
+    await session.commit()
+
+
 async def orm_delete_product(session: AsyncSession, product_id: int, salon_id: int):
     query = delete(Product).where(Product.id == product_id, Product.salon_id == salon_id)
     await session.execute(query)

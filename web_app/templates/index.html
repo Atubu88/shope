@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Каталог товаров{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Каталог товаров</h1>
+
+<!-- Категории -->
+<nav class="nav nav-pills mb-4">
+  {% for cat in categories %}
+    <a class="nav-link {% if cat.id == current_cat %}active{% endif %}"
+       hx-get="/category/{{ cat.id }}"
+       hx-target="#product-list"
+       hx-swap="innerHTML">
+      {{ cat.name }}
+    </a>
+  {% endfor %}
+</nav>
+
+<!-- Список товаров -->
+<div id="product-list">
+  {% include "products_list.html" %}
+</div>
+{% endblock %}

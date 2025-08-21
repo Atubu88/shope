@@ -14,7 +14,6 @@ venv/
 # Базы данных (локальные)
 *.db
 
-web_app/
 
 # IDE/Editor configs
 .idea/
