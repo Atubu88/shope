@@ -2,7 +2,7 @@
   <nav class="nav nav-pills mb-4">
     {% for cat in categories %}
       <a class="nav-link {% if cat.id == current_cat %}active{% endif %}"
-         hx-get="/category/{{ cat.id }}"
+         hx-get="/{{ salon_slug }}/category/{{ cat.id }}"
          hx-target="#catalog-content"
          hx-swap="outerHTML">
         {{ cat.name }}
@@ -12,7 +12,7 @@
 
   <nav aria-label="breadcrumb" id="breadcrumbs">
     <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="/">Главная</a></li>
+      <li class="breadcrumb-item"><a href="/{{ salon_slug }}/">Главная</a></li>
       {% if current_cat_name %}
         <li class="breadcrumb-item active" aria-current="page">{{ current_cat_name }}</li>
       {% endif %}
