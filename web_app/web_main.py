@@ -26,8 +26,31 @@ from database.orm_query import (
     orm_add_user,        # добавляет юзера и связь UserSalon
     orm_get_user_salon,  # ⚡ новый метод: проверить есть ли уже user_salon
 )
+import logging
+import traceback
+from fastapi import FastAPI, Request
+from fastapi.responses import PlainTextResponse
 
-app = FastAPI()
+logging.basicConfig(level=logging.DEBUG)
+
+app = FastAPI(debug=True)
+
+# middleware, чтобы ошибки точно печатались
+@app.middleware("http")
+async def log_exceptions(request: Request, call_next):
+    try:
+        response = await call_next(request)
+        return response
+    except Exception as e:
+        # Логируем всю ошибку с traceback
+        logging.error("🔥 Ошибка при обработке запроса", exc_info=True)
+
+        # Отправляем ошибку в браузер (чтобы не было пустого 500)
+        return PlainTextResponse(
+            content=f"Ошибка: {str(e)}\n\n{traceback.format_exc()}",
+            status_code=500,
+        )
+
 templates = Jinja2Templates(directory="web_app/templates")
 
 
@@ -73,6 +96,7 @@ async def index(
     user_salon_id = request.cookies.get("user_salon_id")
     init_data = request.headers.get("X-Telegram-Init-Data") or request.query_params.get("init_data")
 
+    user_payload = None
     if not user_salon_id and init_data:
         user_payload = _verify_init_data(init_data)
         print("INIT DATA:", init_data)  # 🔍 raw string от Telegram
