@@ -3,6 +3,7 @@ from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+import os
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +19,7 @@ from database.orm_query import (
     orm_get_salon_by_slug,
     orm_get_product,
     orm_get_products,
+    orm_get_salon_by_id,
     orm_get_user,
     orm_set_user_language,
 )
@@ -139,6 +141,20 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
             session, level=0, menu_name="main", user_salon_id=user_salon.id
         )
         await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
+
+        domain = os.getenv("WEBAPP_DOMAIN", "yourdomain.com")
+        webapp_markup = types.ReplyKeyboardMarkup(
+            keyboard=[
+                [
+                    types.KeyboardButton(
+                        text=_("Открыть магазин"),
+                        web_app=types.WebAppInfo(url=f"https://{domain}/{salon.slug}"),
+                    )
+                ]
+            ],
+            resize_keyboard=True,
+        )
+        await message.answer(_("Откройте витрину"), reply_markup=webapp_markup)
         return
 
     # ➜ показываем только те салоны, к которым пользователь уже привязан
@@ -165,6 +181,20 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
             session, level=0, menu_name="main", user_salon_id=us.id
         )
         await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
+
+        domain = os.getenv("WEBAPP_DOMAIN", "yourdomain.com")
+        webapp_markup = types.ReplyKeyboardMarkup(
+            keyboard=[
+                [
+                    types.KeyboardButton(
+                        text=_("Открыть магазин"),
+                        web_app=types.WebAppInfo(url=f"https://{domain}/{us.salon.slug}"),
+                    )
+                ]
+            ],
+            resize_keyboard=True,
+        )
+        await message.answer(_("Откройте витрину"), reply_markup=webapp_markup)
         return
 
     # >1 салонов — даём пользователю выбрать среди своих
@@ -222,6 +252,21 @@ async def choose_salon(
     )
     await callback.message.edit_text(_("Салон выбран"))
     await callback.message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
+
+    salon = await orm_get_salon_by_id(session, callback_data.salon_id)
+    domain = os.getenv("WEBAPP_DOMAIN", "yourdomain.com")
+    webapp_markup = types.ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                types.KeyboardButton(
+                    text=_("Открыть магазин"),
+                    web_app=types.WebAppInfo(url=f"https://{domain}/{salon.slug}"),
+                )
+            ]
+        ],
+        resize_keyboard=True,
+    )
+    await callback.message.answer(_("Откройте витрину"), reply_markup=webapp_markup)
 
 
 @user_private_router.callback_query(MenuCallBack.filter())
