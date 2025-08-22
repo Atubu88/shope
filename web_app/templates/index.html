@@ -5,5 +5,22 @@
 {% block content %}
 <h1 class="mb-4">Каталог товаров</h1>
 
+<script>
+    // initData как строка
+    const initData = "{{ init_data|escapejs }}";
+    console.log("Telegram initData:", initData);
+
+    // userPayload как JSON-объект или null
+    let userPayload = null;
+    try {
+        userPayload = JSON.parse('{{ user_payload|tojson|escapejs }}');
+    } catch (e) {
+        console.log("Нет user_payload или ошибка парсинга:", e);
+    }
+
+    console.log("Decoded user:", userPayload);
+</script>
+
+
 {% include "catalog_content.html" %}
 {% endblock %}

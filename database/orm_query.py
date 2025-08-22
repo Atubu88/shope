@@ -575,3 +575,22 @@ async def orm_update_order_status(
         await session.refresh(order)
         return order
     return None
+
+
+
+async def orm_get_user_by_tg_and_salon(session, user_id: int, salon_id: int):
+    stmt = select(UserSalon).where(
+        UserSalon.user_id == user_id,
+        UserSalon.salon_id == salon_id,
+    )
+    res = await session.execute(stmt)
+    return res.scalars().first()
+
+
+async def orm_get_user_salon(session, user_id: int, salon_id: int):
+    stmt = select(UserSalon).where(
+        UserSalon.user_id == user_id,
+        UserSalon.salon_id == salon_id
+    )
+    result = await session.execute(stmt)
+    return result.scalars().first()

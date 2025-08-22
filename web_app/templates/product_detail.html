@@ -5,9 +5,9 @@
 {% block content %}
 <nav aria-label="breadcrumb" class="mb-3">
   <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="/">Главная</a></li>
+    <li class="breadcrumb-item"><a href="/{{ salon_slug }}/">Главная</a></li>
     {% if category %}
-      <li class="breadcrumb-item"><a href="/?cat={{ category.id }}">{{ category.name }}</a></li>
+      <li class="breadcrumb-item"><a href="/{{ salon_slug }}/?cat={{ category.id }}">{{ category.name }}</a></li>
     {% endif %}
     <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
   </ol>

@@ -7,7 +7,7 @@
         {% endif %}
         <div class="card-body d-flex flex-column">
           <h5 class="card-title">
-            <a href="/product/{{ product.id }}" class="text-decoration-none">{{ product.name }}</a>
+            <a href="/{{ salon_slug }}/product/{{ product.id }}" class="text-decoration-none">{{ product.name }}</a>
           </h5>
           <p class="card-text text-muted small">{{ product.description or "" }}</p>
           <p class="fw-bold mb-2">Цена: {{ "%.2f"|format(product.price) }} ₽</p>
