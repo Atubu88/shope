@@ -15,7 +15,7 @@ from urllib.parse import parse_qsl, quote
 
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.engine import session_maker
@@ -54,6 +54,12 @@ async def log_exceptions(request: Request, call_next):
 templates = Jinja2Templates(directory="web_app/templates")
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> Response:
+    """Return empty response for browsers requesting ``/favicon.ico``."""
+    return Response(status_code=204)
+
+
 async def get_session() -> AsyncSession:
     async with session_maker() as session:
         yield session
@@ -89,15 +95,19 @@ async def root(request: Request, session: AsyncSession = Depends(get_session)):
     if not init_data_raw:
         content = """
         <html><body>
+        <div id=\"status\">Загрузка...</div>
         <script>
-        const initData = window.Telegram?.WebApp?.initData || '';
-        if (initData) {
-            const url = new URL(window.location.href);
-            url.searchParams.set('init_data', initData);
-            window.location.replace(url.toString());
-        }
+        (function () {
+            const initData = window.Telegram?.WebApp?.initData || '';
+            if (initData) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('init_data', initData);
+                window.location.replace(url.toString());
+            } else {
+                document.getElementById('status').textContent = 'Это окно нужно открывать внутри Telegram';
+            }
+        })();
         </script>
-        Загрузка...
         </body></html>
         """
         return HTMLResponse(content)
