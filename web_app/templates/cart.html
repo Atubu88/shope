@@ -1,0 +1,17 @@
+<div class="container">
+  <h3>🛒 Ваша корзина</h3>
+  {% if items %}
+    <ul class="list-group mb-3">
+      {% for item in items %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          {{ item.product.name }} (x{{ item.quantity }})
+          <span>{{ "%.2f"|format(item.product.price * item.quantity) }} ₽</span>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="fw-bold">Итого: {{ "%.2f"|format(total) }} ₽</p>
+    <button class="btn btn-success w-100">Оформить заказ</button>
+  {% else %}
+    <p>Корзина пуста</p>
+  {% endif %}
+</div>

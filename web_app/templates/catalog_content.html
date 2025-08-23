@@ -1,15 +1,17 @@
 <div id="catalog-content">
-  <nav class="nav nav-pills mb-4">
+  <!-- Горизонтальная прокрутка категорий -->
+  <div class="d-flex overflow-auto mb-3" style="gap:10px;">
     {% for cat in categories %}
-      <a class="nav-link {% if cat.id == current_cat %}active{% endif %}"
+      <a class="btn {% if cat.id == current_cat %}btn-primary{% else %}btn-outline-secondary{% endif %} flex-shrink-0"
          hx-get="/{{ salon_slug }}/category/{{ cat.id }}"
          hx-target="#catalog-content"
          hx-swap="outerHTML">
         {{ cat.name }}
       </a>
     {% endfor %}
-  </nav>
+  </div>
 
+  <!-- Хлебные крошки -->
   <nav aria-label="breadcrumb" id="breadcrumbs">
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="/{{ salon_slug }}/">Главная</a></li>
@@ -19,5 +21,6 @@
     </ol>
   </nav>
 
+  <!-- Список товаров -->
   {% include "products_list.html" %}
 </div>
