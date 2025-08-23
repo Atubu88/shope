@@ -96,6 +96,7 @@ async def root(request: Request, session: AsyncSession = Depends(get_session)):
         content = """
         <html><body>
         <div id=\"status\">Загрузка...</div>
+        <script src=\"https://telegram.org/js/telegram-web-app.js\"></script>
         <script>
         (function () {
             const status = document.getElementById('status');
