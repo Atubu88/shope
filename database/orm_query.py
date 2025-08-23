@@ -403,6 +403,29 @@ async def orm_get_user_salon(session: AsyncSession, user_id: int, salon_id: int)
     return result.scalar()
 
 
+async def orm_get_last_salon_slug(session: AsyncSession, user_id: int) -> str | None:
+    """Return slug of most recently used salon for given user."""
+    stmt = (
+        select(UserSalon)
+        .where(UserSalon.user_id == user_id)
+        .order_by(UserSalon.updated.desc())
+        .options(joinedload(UserSalon.salon))
+    )
+    result = await session.execute(stmt)
+    user_salon = result.scalars().first()
+    return user_salon.salon.slug if user_salon else None
+
+
+async def orm_touch_user_salon(session: AsyncSession, user_id: int, salon_id: int) -> None:
+    """Update ``updated`` timestamp for the UserSalon row."""
+    await session.execute(
+        update(UserSalon)
+        .where(UserSalon.user_id == user_id, UserSalon.salon_id == salon_id)
+        .values(updated=func.now())
+    )
+    await session.commit()
+
+
 ######################## Работа с корзинами #######################################
 
 async def orm_add_to_cart(

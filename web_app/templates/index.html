@@ -3,6 +3,7 @@
 {% block title %}Каталог товаров{% endblock %}
 
 {% block content %}
+<p>Добро пожаловать, {{ user_payload.get('first_name') }}{% if user_payload.get('last_name') %} {{ user_payload.get('last_name') }}{% endif %} — вы в салоне: {{ salon_name }} (slug: {{ salon_slug }})</p>
 <h1 class="mb-4">Каталог товаров</h1>
 
 <script>
