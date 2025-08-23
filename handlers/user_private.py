@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from sqlalchemy import select
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from utils.i18n import _, i18n  # ✅ единый i18n и gettext
@@ -47,6 +47,37 @@ async def start_cmd(message: types.Message, session: AsyncSession):
         )
         session.add(user)
         await session.commit()
+
+    # Обработка deep-link /start с параметром (в т.ч. startapp)
+    args = message.get_args()
+    slug = None
+    if args:
+        # startapp передаёт параметр как "app=<slug>"
+        if args.startswith("app="):
+            slug = args[4:]
+        else:
+            slug = args
+
+    if slug:
+        salon = await orm_get_salon_by_slug(session, slug)
+        if salon:
+            # Создаём/обновляем связь User↔Salon и отмечаем как MRU
+            await orm_add_user(
+                session,
+                user_id=user_id,
+                salon_id=salon.id,
+                first_name=message.from_user.first_name,
+                last_name=message.from_user.last_name,
+            )
+            await session.execute(
+                update(UserSalon)
+                .where(
+                    UserSalon.user_id == user_id,
+                    UserSalon.salon_id == salon.id,
+                )
+                .values(updated=func.now())
+            )
+            await session.commit()
 
     await message.answer(
         f"Привет, {message.from_user.first_name}!\n\n"

@@ -3,20 +3,27 @@
 {% block title %}Каталог товаров{% endblock %}
 
 {% block content %}
+<p>
+  Добро пожаловать, <strong>{{ welcome_name or 'none' }}</strong> —
+  вы в салоне: <strong>{{ salon_name }}</strong> (slug: {{ salon_slug }})
+</p>
+
 <h1 class="mb-4">Каталог товаров</h1>
 
-<script>
-    // initData как строка
-    const initData = "{{ init_data | default('') | escapejs }}";
-    console.log("Telegram initData:", initData);
-
-    // userPayload — либо объект, либо null
-    const userPayload = {{ (user_payload | tojson) if user_payload else "null" }};
-    console.log("Decoded user:", userPayload);
+<!-- Кладём JSON без парсинга линтерами/IDE -->
+<script id="bootstrap-data" type="text/plain">
+{{ {"initData": (init_data or ""), "userPayload": (user_payload or {})} | tojson }}
 </script>
 
-
-
+<script>
+  (function () {
+    const el = document.getElementById('bootstrap-data');
+    let data = { initData: "", userPayload: {} };
+    try { data = JSON.parse(el.textContent); } catch (e) { console.warn('Bad bootstrap JSON', e); }
+    console.log('Telegram initData:', data.initData);
+    console.log('Decoded user:', data.userPayload);
+  })();
+</script>
 
 {% include "catalog_content.html" %}
 {% endblock %}

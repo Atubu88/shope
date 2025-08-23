@@ -18,6 +18,14 @@
 </nav>
 
 <div class="container">
+
+    <!-- Debug-banner: кто вошёл и в какой салон -->
+    <div class="alert alert-secondary py-2 mb-3" role="alert"
+         style="border-radius:10px;">
+      Добро пожаловать, <strong>{{ welcome_name or 'none' }}</strong> — вы в салоне:
+      <strong>{{ salon_name or 'none' }}</strong> (slug: <code>{{ salon_slug or 'none' }}</code>)
+    </div>
+
     {% block content %}{% endblock %}
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

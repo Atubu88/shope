@@ -594,3 +594,60 @@ async def orm_get_user_salon(session, user_id: int, salon_id: int):
     )
     result = await session.execute(stmt)
     return result.scalars().first()
+
+
+async def orm_touch_user_salon(session: AsyncSession, tg_user_id: int, salon_id: int) -> None:
+    """Пометить салон как последне-использованный (обновить updated)."""
+    await session.execute(
+        update(UserSalon)
+        .where(UserSalon.user_id == tg_user_id, UserSalon.salon_id == salon_id)
+        .values(updated=func.now())
+    )
+    await session.commit()
+
+async def orm_get_mru_salon(session: AsyncSession, tg_user_id: int) -> Salon | None:
+    """Most Recently Used salon для пользователя по updated."""
+    q = (
+        select(Salon)
+        .join(UserSalon, UserSalon.salon_id == Salon.id)
+        .where(UserSalon.user_id == tg_user_id)
+        .order_by(UserSalon.updated.desc(), Salon.name.asc())
+        .limit(1)
+    )
+    res = await session.execute(q)
+    return res.scalar_one_or_none()
+
+async def orm_get_any_salon(session: AsyncSession, tg_user_id: int) -> Salon | None:
+    """Если updated не помог — взять любой привязанный (напр., по имени)."""
+    q = (
+        select(Salon)
+        .join(UserSalon, UserSalon.salon_id == Salon.id)
+        .where(UserSalon.user_id == tg_user_id)
+        .order_by(Salon.name.asc())
+        .limit(1)
+    )
+    res = await session.execute(q)
+    return res.scalar_one_or_none()
+
+
+async def orm_get_last_salon_slug(session: AsyncSession, user_id: int) -> str | None:
+    """Return slug of most recently used salon for given user."""
+    stmt = (
+        select(UserSalon)
+        .where(UserSalon.user_id == user_id)
+        .order_by(UserSalon.updated.desc())
+        .options(joinedload(UserSalon.salon))
+    )
+    result = await session.execute(stmt)
+    user_salon = result.scalars().first()
+    return user_salon.salon.slug if user_salon else None
+
+
+async def orm_touch_user_salon(session: AsyncSession, user_id: int, salon_id: int) -> None:
+    """Update ``updated`` timestamp for the UserSalon row."""
+    await session.execute(
+        update(UserSalon)
+        .where(UserSalon.user_id == user_id, UserSalon.salon_id == salon_id)
+        .values(updated=func.now())
+    )
+    await session.commit()
