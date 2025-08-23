@@ -98,14 +98,23 @@ async def root(request: Request, session: AsyncSession = Depends(get_session)):
         <div id=\"status\">Загрузка...</div>
         <script>
         (function () {
-            const initData = window.Telegram?.WebApp?.initData || '';
-            if (initData) {
-                const url = new URL(window.location.href);
-                url.searchParams.set('init_data', initData);
-                window.location.replace(url.toString());
-            } else {
-                document.getElementById('status').textContent = 'Это окно нужно открывать внутри Telegram';
+            const status = document.getElementById('status');
+            let attempts = 0;
+            function check() {
+                const tg = window.Telegram?.WebApp;
+                const initData = tg?.initData;
+                if (initData) {
+                    tg.ready?.();
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('init_data', initData);
+                    window.location.replace(url.toString());
+                } else if (attempts++ < 50) {
+                    setTimeout(check, 100);
+                } else {
+                    status.textContent = 'Это окно нужно открывать внутри Telegram';
+                }
             }
+            check();
         })();
         </script>
         </body></html>
