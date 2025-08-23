@@ -1,39 +1,38 @@
 """FastAPI application serving the Telegram mini-app storefront.
 
 Supports selecting a salon by its slug (``/{salon_slug}/``) and authenticates
-Telegram MiniApp requests via ``initData``.  On first visit a ``User`` and
+Telegram MiniApp requests via ``initData``. On first visit a ``User`` and
 ``UserSalon`` record are created (если их нет), их ``user_salon_id`` кладётся в cookie.
 """
-
-from fastapi import FastAPI, Depends, Request, HTTPException
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
 import hashlib
 import hmac
 import json
 import os
+import logging
+import traceback
 from urllib.parse import parse_qsl
 
-from database.engine import session_maker  # общий async sessionmaker
+from fastapi import FastAPI, Depends, Request, HTTPException
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse, PlainTextResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from database.engine import session_maker
 from database.orm_query import (
     orm_get_categories,
     orm_get_products,
     orm_get_product,
     orm_get_category,
     orm_get_salon_by_slug,
-    orm_add_user,        # добавляет юзера и связь UserSalon
-    orm_get_user_salon,  # ⚡ новый метод: проверить есть ли уже user_salon
+    orm_add_user,
+    orm_get_user_salon,
 )
-import logging
-import traceback
-from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse
 
+# Настройка логирования
 logging.basicConfig(level=logging.DEBUG)
 
-app = FastAPI(debug=True)
+app = FastAPI()
 
 # middleware, чтобы ошибки точно печатались
 @app.middleware("http")
@@ -42,10 +41,7 @@ async def log_exceptions(request: Request, call_next):
         response = await call_next(request)
         return response
     except Exception as e:
-        # Логируем всю ошибку с traceback
         logging.error("🔥 Ошибка при обработке запроса", exc_info=True)
-
-        # Отправляем ошибку в браузер (чтобы не было пустого 500)
         return PlainTextResponse(
             content=f"Ошибка: {str(e)}\n\n{traceback.format_exc()}",
             status_code=500,
@@ -60,21 +56,22 @@ async def get_session() -> AsyncSession:
 
 
 def _verify_init_data(init_data: str) -> dict | None:
-    """Validate Telegram WebApp ``initData`` signature.
-
-    Returns decoded payload on success, otherwise ``None``.
-    """
+    """Validate Telegram WebApp ``initData`` signature."""
     token = os.getenv("TOKEN")
     if not token:
+        logging.error("❌ Нет TOKEN в переменных окружения")
         return None
 
     data = dict(parse_qsl(init_data, strict_parsing=True))
     received_hash = data.pop("hash", None)
     data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(data.items()))
 
-    secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
-    computed_hash = hmac.new(secret, data_check_string.encode(), hashlib.sha256).hexdigest()
+    # ⚡ важно: без .digest()
+    secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256)
+    computed_hash = hmac.new(secret.digest(), data_check_string.encode(), hashlib.sha256).hexdigest()
+
     if computed_hash != received_hash:
+        logging.warning("⚠️ Подпись initData не совпала")
         return None
 
     if "user" in data:
@@ -99,11 +96,10 @@ async def index(
     user_payload = None
     if not user_salon_id and init_data:
         user_payload = _verify_init_data(init_data)
-        print("INIT DATA:", init_data)  # 🔍 raw string от Telegram
-        print("USER PAYLOAD:", user_payload)  # 🔍 dict с id, именем и т.п.
+        logging.debug(f"INIT DATA: {init_data}")
+        logging.debug(f"USER PAYLOAD: {user_payload}")
 
         if user_payload:
-            # Проверяем — есть ли уже такой пользователь в этом салоне
             user_salon = await orm_get_user_salon(session, user_payload["id"], salon.id)
             if not user_salon:
                 user_salon = await orm_add_user(
@@ -136,7 +132,7 @@ async def index(
         "current_cat_name": current_cat_name,
         "salon_slug": salon.slug,
         "init_data": init_data or "",
-        "user_payload": user_payload or None,
+        "user_payload": user_payload or {},  # ⚡ всегда dict, чтобы не ломать шаблон
     }
 
     response = templates.TemplateResponse("index.html", context)

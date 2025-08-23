@@ -7,19 +7,15 @@
 
 <script>
     // initData как строка
-    const initData = "{{ init_data|escapejs }}";
+    const initData = "{{ init_data | default('') | escapejs }}";
     console.log("Telegram initData:", initData);
 
-    // userPayload как JSON-объект или null
-    let userPayload = null;
-    try {
-        userPayload = JSON.parse('{{ user_payload|tojson|escapejs }}');
-    } catch (e) {
-        console.log("Нет user_payload или ошибка парсинга:", e);
-    }
-
+    // userPayload — либо объект, либо null
+    const userPayload = {{ (user_payload | tojson) if user_payload else "null" }};
     console.log("Decoded user:", userPayload);
 </script>
+
+
 
 
 {% include "catalog_content.html" %}
