@@ -1,17 +1,28 @@
-<div class="row">
+<div class="row g-3">
   {% for product in products %}
-    <div class="col-6 col-md-4 col-lg-3 mb-4">
-      <div class="card h-100 shadow-sm">
-        {% if product.image %}
-          <img src="{{ product.image }}" class="card-img-top" alt="{{ product.name }}">
-        {% endif %}
-        <div class="card-body d-flex flex-column">
-          <h5 class="card-title">
-            <a href="/{{ salon_slug }}/product/{{ product.id }}" class="text-decoration-none">{{ product.name }}</a>
-          </h5>
-          <p class="fw-bold mb-2">Цена: {{ "%.2f"|format(product.price) }} ₽</p>
+    <div class="col-6 col-md-4 col-lg-3">
+      <div class="card h-100 border-0 shadow-sm product-card">
 
-          <!-- Обновляем оба счётчика -->
+        {% if product.image %}
+          <div class="d-flex justify-content-center align-items-center p-3">
+            <div class="product-img-circle">
+              <img src="{{ product.image }}" alt="{{ product.name }}">
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="card-body text-center d-flex flex-column p-2">
+          <h6 class="card-title mb-2 text-truncate" style="font-size: 0.95rem;">
+            <a href="/{{ salon_slug }}/product/{{ product.id }}"
+               class="text-decoration-none text-dark">
+              {{ product.name }}
+            </a>
+          </h6>
+
+          <p class="fw-bold mb-2" style="font-size: 0.9rem;">
+            {{ "%.2f"|format(product.price) }} ₽
+          </p>
+
           <button
               class="btn btn-sm btn-primary mt-auto"
               hx-post="/{{ salon_slug }}/cart/add/{{ product.id }}?init_data={{ init_data|urlencode }}"
@@ -21,7 +32,31 @@
             Добавить в корзину
           </button>
         </div>
+
       </div>
     </div>
   {% endfor %}
 </div>
+
+<style>
+  .product-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Картинка строго в круге */
+  .product-img-circle {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    overflow: hidden;
+  }
+  .product-img-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+</style>

@@ -397,5 +397,7 @@ async def add_to_cart(
     )
     count = total.scalar() or 0
 
-    # ⚡ Возвращаем только число (plain text!)
-    return PlainTextResponse(str(count))
+    # ⚡ Возвращаем число для шапки + OOB для плавающей корзины
+    return HTMLResponse(
+        f"{count}<span id='cart-count-floating' hx-swap-oob='innerHTML'>{count}</span>"
+    )
