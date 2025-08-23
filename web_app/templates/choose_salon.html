@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Выбор салона{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Выберите салон</h2>
+
+<ul>
+  {% for salon in salons %}
+    <li style="margin-bottom: 10px;">
+      <a href="/{{ salon.slug }}/?init_data={{ init_data | urlencode }}">
+        {{ salon.name }} ({{ salon.slug }})
+      </a>
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}

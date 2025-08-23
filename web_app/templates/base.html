@@ -13,10 +13,11 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
   <div class="container">
-    <a class="navbar-brand" href="/{{ salon_slug }}/">🍕 PizzaBot Store</a>
+    <a class="navbar-brand" href="/{{ salon_slug }}/">
+      {{ salon_name or "Мой салон" }}
+    </a>
   </div>
 </nav>
-
 <div class="container">
 
     <!-- Debug-banner: кто вошёл и в какой салон -->
