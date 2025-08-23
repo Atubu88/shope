@@ -11,11 +11,11 @@ import json
 import os
 import logging
 import traceback
-from urllib.parse import parse_qsl
+from urllib.parse import parse_qsl, quote
 
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.engine import session_maker
@@ -27,6 +27,10 @@ from database.orm_query import (
     orm_get_salon_by_slug,
     orm_add_user,
     orm_get_user_salon,
+    orm_get_salons,
+    orm_get_user_salons,
+    orm_get_last_salon_slug,
+    orm_touch_user_salon,
 )
 
 # Настройка логирования
@@ -75,8 +79,56 @@ def _verify_init_data(init_data: str) -> dict | None:
         return None
 
     if "user" in data:
-        return json.loads(data["user"])
-    return None
+        data["user"] = json.loads(data["user"])
+    return data
+
+
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request, session: AsyncSession = Depends(get_session)):
+    init_data_raw = request.query_params.get("init_data")
+    if not init_data_raw:
+        content = """
+        <html><body>
+        <script>
+        const initData = window.Telegram?.WebApp?.initData || '';
+        if (initData) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('init_data', initData);
+            window.location.replace(url.toString());
+        }
+        </script>
+        Загрузка...
+        </body></html>
+        """
+        return HTMLResponse(content)
+
+    payload = _verify_init_data(init_data_raw)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid init_data")
+
+    user = payload.get("user", {})
+    user_id = user.get("id")
+    slug = payload.get("start_param")
+
+    if not slug:
+        slug = request.cookies.get("last_salon_slug")
+
+    if not slug and user_id:
+        slug = await orm_get_last_salon_slug(session, user_id)
+
+    if not slug and user_id:
+        user_salons = await orm_get_user_salons(session, user_id)
+        if len(user_salons) == 1:
+            slug = user_salons[0].salon.slug
+
+    if not slug:
+        salons = await orm_get_salons(session)
+        if not salons:
+            raise HTTPException(status_code=404, detail="No salons configured")
+        slug = salons[0].slug
+
+    return RedirectResponse(
+        url=f"/{slug}/?init_data={quote(init_data_raw, safe='')}")
 
 
 @app.get("/{salon_slug}/", response_class=HTMLResponse)
@@ -93,23 +145,22 @@ async def index(
     user_salon_id = request.cookies.get("user_salon_id")
     init_data = request.headers.get("X-Telegram-Init-Data") or request.query_params.get("init_data")
 
-    user_payload = None
-    if not user_salon_id and init_data:
-        user_payload = _verify_init_data(init_data)
-        logging.debug(f"INIT DATA: {init_data}")
-        logging.debug(f"USER PAYLOAD: {user_payload}")
+    payload = _verify_init_data(init_data) if init_data else None
+    user_payload = payload.get("user") if payload else None
 
-        if user_payload:
-            user_salon = await orm_get_user_salon(session, user_payload["id"], salon.id)
-            if not user_salon:
-                user_salon = await orm_add_user(
-                    session,
-                    user_id=user_payload["id"],
-                    salon_id=salon.id,
-                    first_name=user_payload.get("first_name"),
-                    last_name=user_payload.get("last_name"),
-                )
-            user_salon_id = str(user_salon.id)
+    if user_payload:
+        user_salon = await orm_get_user_salon(session, user_payload["id"], salon.id)
+        if not user_salon:
+            user_salon = await orm_add_user(
+                session,
+                user_id=user_payload["id"],
+                salon_id=salon.id,
+                first_name=user_payload.get("first_name"),
+                last_name=user_payload.get("last_name"),
+            )
+        else:
+            await orm_touch_user_salon(session, user_payload["id"], salon.id)
+        user_salon_id = str(user_salon.id)
 
     categories = await orm_get_categories(session, salon_id=salon.id)
     current_cat_id = cat or (categories[0].id if categories else None)
@@ -131,6 +182,7 @@ async def index(
         "current_cat": current_cat_id,
         "current_cat_name": current_cat_name,
         "salon_slug": salon.slug,
+        "salon_name": salon.name,
         "init_data": init_data or "",
         "user_payload": user_payload or {},  # ⚡ всегда dict, чтобы не ломать шаблон
     }
@@ -138,6 +190,7 @@ async def index(
     response = templates.TemplateResponse("index.html", context)
     if user_salon_id:
         response.set_cookie("user_salon_id", user_salon_id)
+    response.set_cookie("last_salon_slug", salon.slug)
     return response
 
 
