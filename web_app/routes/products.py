@@ -28,16 +28,21 @@ async def product_detail(
     category = await orm_get_category(session, category_id=product.category_id, salon_id=salon.id)
 
     user_salon_id = request.cookies.get("user_salon_id")
-    cart_count = await get_cart_count(session, user_salon_id)
-
-    welcome_name = None
+    link = None
     if user_salon_id:
         link = await session.get(UserSalon, int(user_salon_id))
-        if link:
-            first = (link.first_name or "").strip()
-            last = (link.last_name or "").strip()
-            full = f"{first} {last}".strip()
-            welcome_name = full or first or last or None
+        if not link or link.salon_id != salon.id:
+            user_salon_id = None
+            link = None
+
+    cart_count = await get_cart_count(session, user_salon_id, salon.id)
+
+    welcome_name = None
+    if link:
+        first = (link.first_name or "").strip()
+        last = (link.last_name or "").strip()
+        full = f"{first} {last}".strip()
+        welcome_name = full or first or last or None
 
     context = {
         "request": request,
