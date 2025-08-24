@@ -197,6 +197,9 @@ async def index(
         link_cookie = await session.get(UserSalon, int(user_salon_id_cookie))
         if link_cookie and link_cookie.salon_id == salon.id:
             user_salon_id = str(link_cookie.id)
+            fn = (getattr(link_cookie, "first_name", "") or "").strip()
+            ln = (getattr(link_cookie, "last_name", "") or "").strip()
+            welcome_name = (f"{fn} {ln}".strip()) or fn or ln or None
 
     if user_payload:
         link = await orm_get_user_salon(session, user_payload["id"], salon.id)
