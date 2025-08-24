@@ -57,6 +57,25 @@ async def log_exceptions(request: Request, call_next):
 templates = Jinja2Templates(directory="web_app/templates")
 
 
+async def _get_cart_count(session: AsyncSession, user_salon_id: str | None) -> int:
+    """Return total quantity of items in the cart for the given ``user_salon_id``.
+
+    If ``user_salon_id`` is missing or the cart is empty, ``0`` is returned.
+    The ``user_salon_id`` comes either from the cookie or freshly created link
+    between a user and a salon.  On initial page load we didn't fetch this
+    number which caused the counter in the navbar to show ``0`` until the user
+    added an item to the cart.  This helper centralises the counting logic so
+    we can show the correct value immediately.
+    """
+
+    if not user_salon_id:
+        return 0
+
+    total = await session.execute(
+        select(func.sum(Cart.quantity)).where(Cart.user_salon_id == int(user_salon_id))
+    )
+    return total.scalar() or 0
+
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon() -> Response:
     """Return empty response for browsers requesting ``/favicon.ico``."""
@@ -141,12 +160,14 @@ async def root(request: Request, session: AsyncSession = Depends(get_session)):
             slug = user_salons[0].salon.slug
         elif len(user_salons) > 1:
             # если несколько → предлагаем выбрать, игнорируя start_param
+            cart_count = await _get_cart_count(session, request.cookies.get("user_salon_id"))
             return templates.TemplateResponse(
                 "choose_salon.html",
                 {
                     "request": request,
                     "salons": [link.salon for link in user_salons],
                     "init_data": init_data_raw,
+                    "cart_count": cart_count,
                 }
             )
 
@@ -238,7 +259,10 @@ async def index(
         if current_cat_id else []
     )
 
-    # 5) Контекст для шаблона
+    # 5) Количество товаров в корзине (для шапки)
+    cart_count = await _get_cart_count(session, user_salon_id)
+
+    # 6) Контекст для шаблона
     context = {
         "request": request,
         "categories": categories,
@@ -250,9 +274,10 @@ async def index(
         "init_data": init_data or "",
         "user_payload": user_payload or {},   # для JS/отладки
         "welcome_name": welcome_name,         # <-- используйте в шаблоне
+        "cart_count": cart_count,
     }
 
-    # 6) Ответ + куки (важно для Telegram WebView)
+    # 7) Ответ + куки (важно для Telegram WebView)
     response = templates.TemplateResponse("index.html", context)
     response.set_cookie(
         "last_salon_slug", salon.slug,
@@ -311,11 +336,14 @@ async def product_detail(
 
     category = await orm_get_category(session, category_id=product.category_id, salon_id=salon.id)
 
+    cart_count = await _get_cart_count(session, request.cookies.get("user_salon_id"))
+
     context = {
         "request": request,
         "product": product,
         "category": category,
         "salon_slug": salon.slug,
+        "cart_count": cart_count,
     }
     return templates.TemplateResponse("product_detail.html", context)
 
@@ -398,6 +426,10 @@ async def add_to_cart(
     count = total.scalar() or 0
 
     # ⚡ Возвращаем число для шапки + OOB для плавающей корзины
-    return HTMLResponse(
-        f"{count}<span id='cart-count-floating' hx-swap-oob='innerHTML'>{count}</span>"
+    return templates.TemplateResponse(
+        "_cart_counts_oob.htm",
+        {
+            "request": request,
+            "cart_count": count,
+        },
     )

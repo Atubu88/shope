@@ -27,8 +27,7 @@
               class="btn btn-sm btn-primary mt-auto"
               hx-post="/{{ salon_slug }}/cart/add/{{ product.id }}?init_data={{ init_data|urlencode }}"
               hx-trigger="click"
-              hx-target="#cart-count, #cart-count-floating"
-              hx-swap="innerHTML">
+              hx-swap="none">
             Добавить в корзину
           </button>
         </div>
