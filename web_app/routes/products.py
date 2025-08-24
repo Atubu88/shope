@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.orm_query import orm_get_category, orm_get_product, orm_get_salon_by_slug
 
-from ..dependencies import get_cart_count, get_session, templates
+from ..web_main import get_cart_count, get_session, templates
 
 router = APIRouter()
 

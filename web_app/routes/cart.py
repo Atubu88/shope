@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from database.models import Cart
 from database.orm_query import orm_add_user, orm_get_salon_by_slug, orm_get_user_salon
 
-from ..dependencies import get_session, templates, verify_init_data
+from ..web_main import get_session, templates, verify_init_data
 
 router = APIRouter()
 
