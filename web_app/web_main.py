@@ -13,7 +13,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.engine import session_maker
-from database.models import Cart
+from database.models import Cart, UserSalon
 from database.orm_query import (
     orm_add_user,
     orm_get_categories,
@@ -39,9 +39,15 @@ async def get_session() -> AsyncSession:
         yield session
 
 
-async def get_cart_count(session: AsyncSession, user_salon_id: str | None) -> int:
+async def get_cart_count(
+    session: AsyncSession, user_salon_id: str | None, salon_id: int | None = None
+) -> int:
     if not user_salon_id:
         return 0
+    if salon_id is not None:
+        link = await session.get(UserSalon, int(user_salon_id))
+        if not link or link.salon_id != salon_id:
+            return 0
     total = await session.execute(
         select(func.sum(Cart.quantity)).where(Cart.user_salon_id == int(user_salon_id))
     )
@@ -184,8 +190,13 @@ async def index(
     payload = verify_init_data(init_data) if init_data else None
     user_payload = payload.get("user") if payload else None
 
-    user_salon_id: str | None = user_salon_id_cookie
+    user_salon_id: str | None = None
     welcome_name: str | None = None
+
+    if user_salon_id_cookie:
+        link_cookie = await session.get(UserSalon, int(user_salon_id_cookie))
+        if link_cookie and link_cookie.salon_id == salon.id:
+            user_salon_id = str(link_cookie.id)
 
     if user_payload:
         link = await orm_get_user_salon(session, user_payload["id"], salon.id)
@@ -225,7 +236,7 @@ async def index(
         else []
     )
 
-    cart_count = await get_cart_count(session, user_salon_id)
+    cart_count = await get_cart_count(session, user_salon_id, salon.id)
 
     context = {
         "request": request,
