@@ -367,6 +367,8 @@ async def view_cart(
 
     total = sum(i.product.price * i.quantity for i in items)
 
+    cart_count = sum(i.quantity for i in items)
+
     return templates.TemplateResponse(
         "cart.html",
         {
@@ -374,6 +376,7 @@ async def view_cart(
             "items": items,
             "total": total,
             "salon_slug": salon_slug,
+            "cart_count": cart_count,
         },
     )
 
@@ -430,6 +433,102 @@ async def add_to_cart(
         "_cart_counts_oob.htm",
         {
             "request": request,
+            "cart_count": count,
+        },
+    )
+
+
+@app.post("/{salon_slug}/cart/increase/{product_id}")
+async def increase_cart_item(
+    request: Request,
+    salon_slug: str,
+    product_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    user_salon_id = request.cookies.get("user_salon_id")
+    if not user_salon_id:
+        raise HTTPException(401, "User not identified")
+
+    cart_item = await session.execute(
+        select(Cart).where(
+            Cart.user_salon_id == int(user_salon_id),
+            Cart.product_id == product_id,
+        )
+    )
+    cart_item = cart_item.scalars().first()
+    if cart_item:
+        cart_item.quantity += 1
+    else:
+        cart_item = Cart(
+            user_salon_id=int(user_salon_id),
+            product_id=product_id,
+            quantity=1,
+        )
+        session.add(cart_item)
+    await session.commit()
+
+    result = await session.execute(
+        select(Cart)
+        .where(Cart.user_salon_id == int(user_salon_id))
+        .options(selectinload(Cart.product))
+    )
+    items = result.scalars().all()
+    total = sum(i.product.price * i.quantity for i in items)
+    count = sum(i.quantity for i in items)
+
+    return templates.TemplateResponse(
+        "_cart_body.html",
+        {
+            "request": request,
+            "items": items,
+            "total": total,
+            "salon_slug": salon_slug,
+            "cart_count": count,
+        },
+    )
+
+
+@app.post("/{salon_slug}/cart/decrease/{product_id}")
+async def decrease_cart_item(
+    request: Request,
+    salon_slug: str,
+    product_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    user_salon_id = request.cookies.get("user_salon_id")
+    if not user_salon_id:
+        raise HTTPException(401, "User not identified")
+
+    cart_item = await session.execute(
+        select(Cart).where(
+            Cart.user_salon_id == int(user_salon_id),
+            Cart.product_id == product_id,
+        )
+    )
+    cart_item = cart_item.scalars().first()
+    if cart_item:
+        if cart_item.quantity > 1:
+            cart_item.quantity -= 1
+        else:
+            await session.delete(cart_item)
+        await session.commit()
+
+    result = await session.execute(
+        select(Cart)
+        .where(Cart.user_salon_id == int(user_salon_id))
+        .options(selectinload(Cart.product))
+    )
+    items = result.scalars().all()
+    total = sum(i.product.price * i.quantity for i in items)
+    count = sum(i.quantity for i in items)
+
+    return templates.TemplateResponse(
+        "_cart_body.html",
+        {
+            "request": request,
+            "items": items,
+            "total": total,
+            "salon_slug": salon_slug,
             "cart_count": count,
         },
     )

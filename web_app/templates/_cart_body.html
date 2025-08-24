@@ -1,0 +1,91 @@
+<div id="cart-container">
+  <h3 class="mb-3">🛒 Ваша корзина</h3>
+  {% if items %}
+    <ul class="list-group mb-3">
+      {% for item in items %}
+        <li class="list-group-item d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center flex-grow-1">
+            {% if item.product.image %}
+            <img src="{{ item.product.image }}" alt="{{ item.product.name }}" class="me-3" style="width:50px;height:50px;object-fit:cover;border-radius:8px;">
+            {% endif %}
+            <div>
+              <div class="fw-semibold">{{ item.product.name }}</div>
+              <small class="text-muted">{{ "%.2f"|format(item.product.price) }} ₽/шт.</small>
+            </div>
+          </div>
+
+          <div class="input-group input-group-sm mx-3 cart-qty flex-nowrap">
+            <button type="button" class="btn btn-outline-secondary qty-btn"
+                    aria-label="Уменьшить количество"
+                    hx-post="/{{ salon_slug }}/cart/decrease/{{ item.product.id }}"
+                    hx-target="#cart-container"
+                    hx-swap="outerHTML"
+                    hx-sync="closest li:queue"
+                    hx-on="
+                      htmx:before-request: this.closest('.cart-qty').querySelectorAll('button').forEach(b=>b.disabled=true);
+                      htmx:beforeRequest: this.closest('.cart-qty').querySelectorAll('button').forEach(b=>b.disabled=true);
+                      htmx:after-request:  this.closest('.cart-qty').querySelectorAll('button').forEach(b=>b.disabled=false);
+                      htmx:afterRequest:  this.closest('.cart-qty').querySelectorAll('button').forEach(b=>b.disabled=false);
+                    ">
+              <span aria-hidden="true">&minus;</span><span class="visually-hidden">Минус</span>
+            </button>
+
+            <input type="number" class="form-control text-center qty-input"
+                   value="{{ item.quantity }}" min="1" readonly
+                   aria-label="Количество {{ item.product.name }}">
+
+            <button type="button" class="btn btn-outline-secondary qty-btn"
+                    aria-label="Увеличить количество"
+                    hx-post="/{{ salon_slug }}/cart/increase/{{ item.product.id }}"
+                    hx-target="#cart-container"
+                    hx-swap="outerHTML"
+                    hx-sync="closest li:queue"
+                    hx-on="
+                      htmx:before-request: this.closest('.cart-qty').querySelectorAll('button').forEach(b=>b.disabled=true);
+                      htmx:beforeRequest: this.closest('.cart-qty').querySelectorAll('button').forEach(b=>b.disabled=true);
+                      htmx:after-request:  this.closest('.cart-qty').querySelectorAll('button').forEach(b=>b.disabled=false);
+                      htmx:afterRequest:  this.closest('.cart-qty').querySelectorAll('button').forEach(b=>b.disabled=false);
+                    ">
+              <span aria-hidden="true">+</span><span class="visually-hidden">Плюс</span>
+            </button>
+          </div>
+
+          <span class="fw-semibold">{{ "%.2f"|format(item.product.price * item.quantity) }} ₽</span>
+        </li>
+      {% endfor %}
+    </ul>
+
+    <p class="fw-bold text-end" aria-live="polite">Итого: {{ "%.2f"|format(total) }} ₽</p>
+    <button type="button" class="btn btn-success w-100">Оформить заказ</button>
+  {% else %}
+    <p>Корзина пуста</p>
+  {% endif %}
+</div>
+
+{% include "_cart_counts_oob.htm" %}
+
+<style>
+  /* Не даём группе переноситься и фиксируем размеры элементов */
+  .cart-qty {
+    flex-wrap: nowrap !important;
+    min-width: 140px; /* запас под 2–3 знака */
+  }
+  .cart-qty .qty-btn {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 32px; /* под input-group-sm */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1; /* чтобы :active не сдвигал */
+  }
+  .cart-qty .qty-input {
+    flex: 0 0 56px;
+    max-width: 56px;
+    text-align: center;
+  }
+  .cart-qty .qty-input::-webkit-outer-spin-button,
+  .cart-qty .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .cart-qty .qty-input[type="number"] { -moz-appearance: textfield; }
+</style>
