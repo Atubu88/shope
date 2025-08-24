@@ -1,85 +1,37 @@
-"""FastAPI application serving the Telegram mini-app storefront.
-
-Supports selecting a salon by its slug (``/{salon_slug}/``) and authenticates
-Telegram MiniApp requests via ``initData``. On first visit a ``User`` and
-``UserSalon`` record are created (если их нет), их ``user_salon_id`` кладётся в cookie.
-"""
-
+import logging
+import traceback
 import hashlib
 import hmac
 import json
 import os
-import logging
-import traceback
-from urllib.parse import parse_qsl, quote
+from urllib.parse import parse_qsl, urlencode
 
-from fastapi import FastAPI, Depends, Request, HTTPException
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from database.engine import session_maker
 from database.models import Cart
 from database.orm_query import (
-    orm_get_categories,
-    orm_get_products,
-    orm_get_product,
-    orm_get_category,
-    orm_get_salon_by_slug,
     orm_add_user,
-    orm_get_user_salon,
-    orm_get_salons,
-    orm_get_user_salons,
+    orm_get_categories,
     orm_get_last_salon_slug,
+    orm_get_products,
+    orm_get_salon_by_slug,
+    orm_get_salons,
+    orm_get_user_salon,
+    orm_get_user_salons,
     orm_touch_user_salon,
+    orm_get_category,
 )
 
-# Настройка логирования
+
 logging.basicConfig(level=logging.DEBUG)
 
-app = FastAPI()
-
-# middleware, чтобы ошибки точно печатались
-@app.middleware("http")
-async def log_exceptions(request: Request, call_next):
-    try:
-        response = await call_next(request)
-        return response
-    except Exception as e:
-        logging.error("🔥 Ошибка при обработке запроса", exc_info=True)
-        return PlainTextResponse(
-            content=f"Ошибка: {str(e)}\n\n{traceback.format_exc()}",
-            status_code=500,
-        )
 
 templates = Jinja2Templates(directory="web_app/templates")
-
-
-async def _get_cart_count(session: AsyncSession, user_salon_id: str | None) -> int:
-    """Return total quantity of items in the cart for the given ``user_salon_id``.
-
-    If ``user_salon_id`` is missing or the cart is empty, ``0`` is returned.
-    The ``user_salon_id`` comes either from the cookie or freshly created link
-    between a user and a salon.  On initial page load we didn't fetch this
-    number which caused the counter in the navbar to show ``0`` until the user
-    added an item to the cart.  This helper centralises the counting logic so
-    we can show the correct value immediately.
-    """
-
-    if not user_salon_id:
-        return 0
-
-    total = await session.execute(
-        select(func.sum(Cart.quantity)).where(Cart.user_salon_id == int(user_salon_id))
-    )
-    return total.scalar() or 0
-
-@app.get("/favicon.ico", include_in_schema=False)
-async def favicon() -> Response:
-    """Return empty response for browsers requesting ``/favicon.ico``."""
-    return Response(status_code=204)
 
 
 async def get_session() -> AsyncSession:
@@ -87,8 +39,16 @@ async def get_session() -> AsyncSession:
         yield session
 
 
-def _verify_init_data(init_data: str) -> dict | None:
-    """Validate Telegram WebApp ``initData`` signature."""
+async def get_cart_count(session: AsyncSession, user_salon_id: str | None) -> int:
+    if not user_salon_id:
+        return 0
+    total = await session.execute(
+        select(func.sum(Cart.quantity)).where(Cart.user_salon_id == int(user_salon_id))
+    )
+    return total.scalar() or 0
+
+
+def verify_init_data(init_data: str) -> dict | None:
     token = os.getenv("TOKEN")
     if not token:
         logging.error("❌ Нет TOKEN в переменных окружения")
@@ -98,9 +58,10 @@ def _verify_init_data(init_data: str) -> dict | None:
     received_hash = data.pop("hash", None)
     data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(data.items()))
 
-    # ⚡ важно: без .digest()
     secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256)
-    computed_hash = hmac.new(secret.digest(), data_check_string.encode(), hashlib.sha256).hexdigest()
+    computed_hash = hmac.new(
+        secret.digest(), data_check_string.encode(), hashlib.sha256
+    ).hexdigest()
 
     if computed_hash != received_hash:
         logging.warning("⚠️ Подпись initData не совпала")
@@ -109,11 +70,32 @@ def _verify_init_data(init_data: str) -> dict | None:
     if "user" in data:
         data["user"] = json.loads(data["user"])
     return data
+
+
+app = FastAPI()
+
+
+@app.middleware("http")
+async def log_exceptions(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:
+        logging.error("🔥 Ошибка при обработке запроса", exc_info=True)
+        return PlainTextResponse(
+            content=f"Ошибка: {str(e)}\n\n{traceback.format_exc()}",
+            status_code=500,
+        )
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> Response:
+    return Response(status_code=204)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request, session: AsyncSession = Depends(get_session)):
     init_data_raw = request.query_params.get("init_data")
     if not init_data_raw:
-        # Бутстрап — подхватываем initData из Telegram
         content = """
         <html><body>
         <div id="status">Загрузка...</div>
@@ -143,8 +125,7 @@ async def root(request: Request, session: AsyncSession = Depends(get_session)):
         """
         return HTMLResponse(content)
 
-    # --- Валидация initData ---
-    payload = _verify_init_data(init_data_raw)
+    payload = verify_init_data(init_data_raw)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid init_data")
 
@@ -152,15 +133,12 @@ async def root(request: Request, session: AsyncSession = Depends(get_session)):
     user_id = user.get("id")
     slug = payload.get("start_param")
 
-    # --- Проверяем, сколько салонов у пользователя ---
     if user_id:
         user_salons = await orm_get_user_salons(session, user_id)
+        cart_count = await get_cart_count(session, request.cookies.get("user_salon_id"))
         if len(user_salons) == 1:
-            # если один салон → берём его (приоритет выше start_param)
             slug = user_salons[0].salon.slug
-        elif len(user_salons) > 1:
-            # если несколько → предлагаем выбрать, игнорируя start_param
-            cart_count = await _get_cart_count(session, request.cookies.get("user_salon_id"))
+        elif len(user_salons) > 1 and not slug:
             return templates.TemplateResponse(
                 "choose_salon.html",
                 {
@@ -168,31 +146,25 @@ async def root(request: Request, session: AsyncSession = Depends(get_session)):
                     "salons": [link.salon for link in user_salons],
                     "init_data": init_data_raw,
                     "cart_count": cart_count,
-                }
+                },
             )
 
-    # --- Приоритет выбора салона ---
     if not slug:
         slug = request.cookies.get("last_salon_slug")
 
     if not slug and user_id:
         slug = await orm_get_last_salon_slug(session, user_id)
 
-    # --- Если вообще ничего не нашли → берём первый из базы ---
     if not slug:
         salons = await orm_get_salons(session)
         if not salons:
             raise HTTPException(status_code=404, detail="No salons configured")
         slug = salons[0].slug
 
-    # --- Редирект в витрину ---
-    from urllib.parse import urlencode
     return RedirectResponse(
         url=f"/{slug}/?{urlencode({'init_data': init_data_raw})}",
-        status_code=307
+        status_code=307,
     )
-
-
 
 
 @app.get("/{salon_slug}/", response_class=HTMLResponse)
@@ -202,24 +174,20 @@ async def index(
     cat: int | None = None,
     session: AsyncSession = Depends(get_session),
 ):
-    # 1) Салон
     salon = await orm_get_salon_by_slug(session, salon_slug)
     if not salon:
         raise HTTPException(status_code=404, detail="Salon not found")
 
-    # 2) init_data и cookie
     init_data = request.headers.get("X-Telegram-Init-Data") or request.query_params.get("init_data")
     user_salon_id_cookie = request.cookies.get("user_salon_id")
 
-    # 3) Пользователь из init_data (если есть)
-    payload = _verify_init_data(init_data) if init_data else None
+    payload = verify_init_data(init_data) if init_data else None
     user_payload = payload.get("user") if payload else None
 
     user_salon_id: str | None = user_salon_id_cookie
     welcome_name: str | None = None
 
     if user_payload:
-        # создаём/находим связь User <-> Salon
         link = await orm_get_user_salon(session, user_payload["id"], salon.id)
         if not link:
             link = await orm_add_user(
@@ -230,15 +198,13 @@ async def index(
                 last_name=user_payload.get("last_name"),
             )
         else:
-            # отметим как последний использованный
             await orm_touch_user_salon(session, user_payload["id"], salon.id)
 
         user_salon_id = str(link.id)
 
-        # имя: сначала берём из init_data, если пусто — из БД (link)
         first = (user_payload.get("first_name") or "").strip()
-        last  = (user_payload.get("last_name") or "").strip()
-        full  = f"{first} {last}".strip()
+        last = (user_payload.get("last_name") or "").strip()
+        full = f"{first} {last}".strip()
         if full or first or last:
             welcome_name = full or first or last
         else:
@@ -246,7 +212,6 @@ async def index(
             ln = (getattr(link, "last_name", "") or "").strip()
             welcome_name = (f"{fn} {ln}".strip()) or fn or ln or None
 
-    # 4) Каталог
     categories = await orm_get_categories(session, salon_id=salon.id)
     current_cat_id = cat or (categories[0].id if categories else None)
     current_cat_name = None
@@ -256,13 +221,12 @@ async def index(
 
     products = (
         await orm_get_products(session, category_id=current_cat_id, salon_id=salon.id)
-        if current_cat_id else []
+        if current_cat_id
+        else []
     )
 
-    # 5) Количество товаров в корзине (для шапки)
-    cart_count = await _get_cart_count(session, user_salon_id)
+    cart_count = await get_cart_count(session, user_salon_id)
 
-    # 6) Контекст для шаблона
     context = {
         "request": request,
         "categories": categories,
@@ -272,25 +236,29 @@ async def index(
         "salon_slug": salon.slug,
         "salon_name": salon.name,
         "init_data": init_data or "",
-        "user_payload": user_payload or {},   # для JS/отладки
-        "welcome_name": welcome_name,         # <-- используйте в шаблоне
+        "user_payload": user_payload or {},
+        "welcome_name": welcome_name,
         "cart_count": cart_count,
     }
 
-    # 7) Ответ + куки (важно для Telegram WebView)
     response = templates.TemplateResponse("index.html", context)
     response.set_cookie(
-        "last_salon_slug", salon.slug,
-        max_age=31536000, samesite="None", secure=True
+        "last_salon_slug",
+        salon.slug,
+        max_age=31536000,
+        samesite="None",
+        secure=True,
     )
     if user_salon_id:
         response.set_cookie(
-            "user_salon_id", user_salon_id,
-            max_age=31536000, samesite="None", secure=True
+            "user_salon_id",
+            user_salon_id,
+            max_age=31536000,
+            samesite="None",
+            secure=True,
         )
 
     return response
-
 
 
 @app.get("/{salon_slug}/category/{cat_id}", response_class=HTMLResponse)
@@ -304,9 +272,9 @@ async def load_category(
     if not salon:
         raise HTTPException(status_code=404, detail="Salon not found")
 
-    products = await orm_get_products(session, category_id=cat_id, salon_id=salon.id)
     categories = await orm_get_categories(session, salon_id=salon.id)
     category = await orm_get_category(session, category_id=cat_id, salon_id=salon.id)
+    products = await orm_get_products(session, category_id=cat_id, salon_id=salon.id)
 
     context = {
         "request": request,
@@ -319,216 +287,8 @@ async def load_category(
     return templates.TemplateResponse("catalog_content.html", context)
 
 
-@app.get("/{salon_slug}/product/{product_id}", response_class=HTMLResponse)
-async def product_detail(
-    request: Request,
-    salon_slug: str,
-    product_id: int,
-    session: AsyncSession = Depends(get_session),
-):
-    salon = await orm_get_salon_by_slug(session, salon_slug)
-    if not salon:
-        raise HTTPException(status_code=404, detail="Salon not found")
+from .routes.products import router as products_router
+from .routes.cart import router as cart_router
 
-    product = await orm_get_product(session, product_id=product_id, salon_id=salon.id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    category = await orm_get_category(session, category_id=product.category_id, salon_id=salon.id)
-
-    cart_count = await _get_cart_count(session, request.cookies.get("user_salon_id"))
-
-    context = {
-        "request": request,
-        "product": product,
-        "category": category,
-        "salon_slug": salon.slug,
-        "cart_count": cart_count,
-    }
-    return templates.TemplateResponse("product_detail.html", context)
-
-
-@app.get("/{salon_slug}/cart", response_class=HTMLResponse)
-async def view_cart(
-    request: Request,
-    salon_slug: str,
-    session: AsyncSession = Depends(get_session),
-):
-    user_salon_id = request.cookies.get("user_salon_id")
-    if not user_salon_id:
-        raise HTTPException(401, "User not identified")
-
-    result = await session.execute(
-        select(Cart).where(Cart.user_salon_id == int(user_salon_id)).options(
-            selectinload(Cart.product)
-        )
-    )
-    items = result.scalars().all()
-
-    total = sum(i.product.price * i.quantity for i in items)
-
-    cart_count = sum(i.quantity for i in items)
-
-    return templates.TemplateResponse(
-        "cart.html",
-        {
-            "request": request,
-            "items": items,
-            "total": total,
-            "salon_slug": salon_slug,
-            "cart_count": cart_count,
-        },
-    )
-
-
-@app.post("/{salon_slug}/cart/add/{product_id}")
-async def add_to_cart(
-    request: Request,
-    salon_slug: str,
-    product_id: int,
-    session: AsyncSession = Depends(get_session),
-):
-    from sqlalchemy import func
-
-    salon = await orm_get_salon_by_slug(session, salon_slug)
-    if not salon:
-        raise HTTPException(status_code=404, detail="Salon not found")
-
-    init_data = request.headers.get("X-Telegram-Init-Data") or request.query_params.get("init_data")
-    payload = _verify_init_data(init_data) if init_data else None
-    user_payload = payload.get("user") if payload else None
-    if not user_payload:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-    link = await orm_get_user_salon(session, user_payload["id"], salon.id)
-    if not link:
-        link = await orm_add_user(
-            session,
-            user_id=user_payload["id"],
-            salon_id=salon.id,
-            first_name=user_payload.get("first_name"),
-            last_name=user_payload.get("last_name"),
-        )
-
-    # Добавляем/увеличиваем количество
-    cart_item = await session.execute(
-        select(Cart).where(Cart.user_salon_id == link.id, Cart.product_id == product_id)
-    )
-    cart_item = cart_item.scalars().first()
-    if cart_item:
-        cart_item.quantity += 1
-    else:
-        cart_item = Cart(user_salon_id=link.id, product_id=product_id, quantity=1)
-        session.add(cart_item)
-    await session.commit()
-
-    # Считаем количество
-    total = await session.execute(
-        select(func.sum(Cart.quantity)).where(Cart.user_salon_id == link.id)
-    )
-    count = total.scalar() or 0
-
-    # ⚡ Возвращаем число для шапки + OOB для плавающей корзины
-    return templates.TemplateResponse(
-        "_cart_counts_oob.htm",
-        {
-            "request": request,
-            "cart_count": count,
-        },
-    )
-
-
-@app.post("/{salon_slug}/cart/increase/{product_id}")
-async def increase_cart_item(
-    request: Request,
-    salon_slug: str,
-    product_id: int,
-    session: AsyncSession = Depends(get_session),
-):
-    user_salon_id = request.cookies.get("user_salon_id")
-    if not user_salon_id:
-        raise HTTPException(401, "User not identified")
-
-    cart_item = await session.execute(
-        select(Cart).where(
-            Cart.user_salon_id == int(user_salon_id),
-            Cart.product_id == product_id,
-        )
-    )
-    cart_item = cart_item.scalars().first()
-    if cart_item:
-        cart_item.quantity += 1
-    else:
-        cart_item = Cart(
-            user_salon_id=int(user_salon_id),
-            product_id=product_id,
-            quantity=1,
-        )
-        session.add(cart_item)
-    await session.commit()
-
-    result = await session.execute(
-        select(Cart)
-        .where(Cart.user_salon_id == int(user_salon_id))
-        .options(selectinload(Cart.product))
-    )
-    items = result.scalars().all()
-    total = sum(i.product.price * i.quantity for i in items)
-    count = sum(i.quantity for i in items)
-
-    return templates.TemplateResponse(
-        "_cart_body.html",
-        {
-            "request": request,
-            "items": items,
-            "total": total,
-            "salon_slug": salon_slug,
-            "cart_count": count,
-        },
-    )
-
-
-@app.post("/{salon_slug}/cart/decrease/{product_id}")
-async def decrease_cart_item(
-    request: Request,
-    salon_slug: str,
-    product_id: int,
-    session: AsyncSession = Depends(get_session),
-):
-    user_salon_id = request.cookies.get("user_salon_id")
-    if not user_salon_id:
-        raise HTTPException(401, "User not identified")
-
-    cart_item = await session.execute(
-        select(Cart).where(
-            Cart.user_salon_id == int(user_salon_id),
-            Cart.product_id == product_id,
-        )
-    )
-    cart_item = cart_item.scalars().first()
-    if cart_item:
-        if cart_item.quantity > 1:
-            cart_item.quantity -= 1
-        else:
-            await session.delete(cart_item)
-        await session.commit()
-
-    result = await session.execute(
-        select(Cart)
-        .where(Cart.user_salon_id == int(user_salon_id))
-        .options(selectinload(Cart.product))
-    )
-    items = result.scalars().all()
-    total = sum(i.product.price * i.quantity for i in items)
-    count = sum(i.quantity for i in items)
-
-    return templates.TemplateResponse(
-        "_cart_body.html",
-        {
-            "request": request,
-            "items": items,
-            "total": total,
-            "salon_slug": salon_slug,
-            "cart_count": count,
-        },
-    )
+app.include_router(products_router)
+app.include_router(cart_router)
