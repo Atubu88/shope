@@ -41,9 +41,10 @@ async def view_cart(
     welcome_name = full or first or last or None
 
     result = await session.execute(
-        select(Cart).where(Cart.user_salon_id == link.id).options(
-            selectinload(Cart.product)
-        )
+        select(Cart)
+        .where(Cart.user_salon_id == link.id)
+        .options(selectinload(Cart.product))
+        .order_by(Cart.id)
     )
     items = result.scalars().all()
 
@@ -159,6 +160,7 @@ async def increase_cart_item(
         select(Cart)
         .where(Cart.user_salon_id == link.id)
         .options(selectinload(Cart.product))
+        .order_by(Cart.id)
     )
     items = result.scalars().all()
     total = sum(i.product.price * i.quantity for i in items)
@@ -214,6 +216,7 @@ async def decrease_cart_item(
         select(Cart)
         .where(Cart.user_salon_id == link.id)
         .options(selectinload(Cart.product))
+        .order_by(Cart.id)
     )
     items = result.scalars().all()
     total = sum(i.product.price * i.quantity for i in items)
