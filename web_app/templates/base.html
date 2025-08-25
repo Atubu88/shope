@@ -6,15 +6,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&display=swap" rel="stylesheet">
     <!-- htmx -->
     <script src="https://unpkg.com/htmx.org@1.8.4"></script>
+
+    <style>
+      .salon-name {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 1.6rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+        color: #f8f9fa !important;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+      }
+
+      /* ширина sidebar */
+      .offcanvas-start {
+        width: 50% !important;   /* половина экрана */
+        max-width: 400px;        /* ограничение для больших экранов */
+      }
+    </style>
 </head>
 <body class="bg-light">
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+<nav class="navbar navbar-dark bg-dark mb-4">
   <div class="container d-flex justify-content-between align-items-center">
+
+    <!-- Гамбургер -->
+    <button class="btn btn-outline-light me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu">
+      ☰
+    </button>
+
     <!-- Название салона -->
-    <a class="navbar-brand" href="/{{ salon_slug }}/">
+    <a class="navbar-brand salon-name" href="/{{ salon_slug }}/">
       {{ salon_name or "Мой салон" }}
     </a>
 
@@ -30,9 +55,25 @@
   </div>
 </nav>
 
+<!-- Sidebar (Offcanvas) -->
+<div class="offcanvas offcanvas-start bg-dark text-white" tabindex="-1" id="sidebarMenu" aria-labelledby="sidebarMenuLabel">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="sidebarMenuLabel">{{ salon_name or "Меню" }}</h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Закрыть"></button>
+  </div>
+  <div class="offcanvas-body">
+    <ul class="list-unstyled">
+      <li><a href="/{{ salon_slug }}/" class="text-white text-decoration-none d-block py-2">🏠 Главная</a></li>
+      <li><a href="/{{ salon_slug }}/catalog" class="text-white text-decoration-none d-block py-2">🛍 Каталог</a></li>
+      <li><a href="/{{ salon_slug }}/services" class="text-white text-decoration-none d-block py-2">💇 Услуги</a></li>
+      <li><a href="/{{ salon_slug }}/contacts" class="text-white text-decoration-none d-block py-2">📞 Контакты</a></li>
+    </ul>
+  </div>
+</div>
+
 <div class="container">
 
-    <!-- Debug-banner: кто вошёл и в какой салон -->
+    <!-- Debug-banner -->
     <div class="alert alert-secondary py-2 mb-3" role="alert" style="border-radius:10px;">
       Добро пожаловать, <strong>{{ welcome_name or 'none' }}</strong> — вы в салоне:
       <strong>{{ salon_name or 'none' }}</strong> (slug: <code>{{ salon_slug or 'none' }}</code>)

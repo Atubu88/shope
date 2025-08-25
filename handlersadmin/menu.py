@@ -7,6 +7,8 @@ from aiogram import Router, F
 from aiogram.client.bot import Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
+from sqlalchemy import select
+
 from filters.chat_types import ChatTypeFilter, IsAdmin
 from common.bot_cmds_list import set_commands
 from aiogram.fsm.context import FSMContext
@@ -114,25 +116,31 @@ async def show_admin_menu(state: FSMContext,
     await state.update_data(main_message_id=msg.message_id)
 
 
-# ─────────────────────────── хендлеры «/admin» и callback ────────────────
 @admin_menu_router.message(Command("admin"))
 async def open_admin(message: Message,
                      state: FSMContext,
                      session: AsyncSession) -> None:
     """
-    Вход в админ‑панель по команде /admin.
+    Вход в админ-панель по команде /admin.
     Сохраняем salon_id пользователя в FSM, чтобы им могли пользоваться
     другие модули (товары, баннеры и др.).
     """
-    data = await state.get_data()
-    user_salon_id = data.get("user_salon_id")
+    tg_id = message.from_user.id
 
-    if user_salon_id is not None:
-        user_salon = await session.get(UserSalon, user_salon_id)
-        if user_salon:
-            await state.update_data(salon_id=user_salon.salon_id)
+    # пробуем взять последний выбранный салон
+    result = await session.execute(
+        select(UserSalon)
+        .where(UserSalon.user_id == tg_id)
+        .order_by(UserSalon.updated.desc())
+        .limit(1)
+    )
+    last_user_salon = result.scalar_one_or_none()
+
+    if last_user_salon:
+        await state.update_data(salon_id=last_user_salon.salon_id)
     else:
-        user_salons = await orm_get_user_salons(session, message.from_user.id)
+        # fallback: если салонов нет
+        user_salons = await orm_get_user_salons(session, tg_id)
         if user_salons:
             await state.update_data(salon_id=user_salons[0].salon_id)
 
