@@ -1,5 +1,8 @@
 <div id="cart-container">
-  <h3 class="mb-3">🛒 Ваша корзина</h3>
+  <div class="d-flex align-items-center mb-3">
+    <a href="javascript:history.back()" class="btn btn-secondary me-3">← Назад</a>
+    <h3 class="mb-0">🛒 Ваша корзина</h3>
+  </div>
   {% if items %}
     <ul class="list-group mb-3">
       {% for item in items %}
