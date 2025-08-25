@@ -82,20 +82,28 @@ async def add_to_cart(
         raise HTTPException(status_code=404, detail="Product not found")
 
     init_data = request.headers.get("X-Telegram-Init-Data") or request.query_params.get("init_data")
-    payload = verify_init_data(init_data) if init_data else None
-    user_payload = payload.get("user") if payload else None
-    if not user_payload:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    user_salon_id = request.cookies.get("user_salon_id")
 
-    link = await orm_get_user_salon(session, user_payload["id"], salon.id)
+    link = None
+    if user_salon_id:
+        link = await session.get(UserSalon, int(user_salon_id))
+        if link and link.salon_id != salon.id:
+            link = None
+
     if not link:
-        link = await orm_add_user(
-            session,
-            user_id=user_payload["id"],
-            salon_id=salon.id,
-            first_name=user_payload.get("first_name"),
-            last_name=user_payload.get("last_name"),
-        )
+        payload = verify_init_data(init_data) if init_data else None
+        user_payload = payload.get("user") if payload else None
+        if not user_payload:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        link = await orm_get_user_salon(session, user_payload["id"], salon.id)
+        if not link:
+            link = await orm_add_user(
+                session,
+                user_id=user_payload["id"],
+                salon_id=salon.id,
+                first_name=user_payload.get("first_name"),
+                last_name=user_payload.get("last_name"),
+            )
 
     cart_item = await session.execute(
         select(Cart).where(Cart.user_salon_id == link.id, Cart.product_id == product_id)
@@ -113,13 +121,22 @@ async def add_to_cart(
     )
     count = total.scalar() or 0
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "_cart_counts_oob.htm",
         {
             "request": request,
             "cart_count": count,
         },
     )
+    if not user_salon_id or int(user_salon_id) != link.id:
+        response.set_cookie(
+            "user_salon_id",
+            str(link.id),
+            max_age=31536000,
+            samesite="None",
+            secure=True,
+        )
+    return response
 
 
 @router.post("/{salon_slug}/cart/increase/{product_id}")
