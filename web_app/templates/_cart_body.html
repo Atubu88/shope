@@ -6,8 +6,8 @@
   {% if items %}
     <ul class="list-group mb-3">
       {% for item in items %}
-        <li class="list-group-item d-flex align-items-center justify-content-between">
-          <div class="d-flex align-items-center flex-grow-1">
+        <li class="list-group-item d-flex align-items-center flex-wrap">
+          <div class="d-flex align-items-center flex-grow-1" style="min-width:0;">
             {% if item.product.image %}
             <img src="{{ item.product.image }}" alt="{{ item.product.name }}" class="me-3" style="width:50px;height:50px;object-fit:cover;border-radius:8px;">
             {% endif %}
@@ -17,7 +17,7 @@
             </div>
           </div>
 
-          <div class="input-group input-group-sm mx-3 cart-qty flex-nowrap">
+          <div class="input-group input-group-sm cart-qty flex-nowrap ms-3">
             <button type="button" class="btn btn-outline-secondary qty-btn"
                     aria-label="Уменьшить количество"
                     hx-post="/{{ salon_slug }}/cart/decrease/{{ item.product.id }}"
@@ -53,7 +53,7 @@
             </button>
           </div>
 
-          <span class="fw-semibold">{{ "%.2f"|format(item.product.price * item.quantity) }} ₽</span>
+          <span class="fw-semibold text-nowrap ms-auto">{{ "%.2f"|format(item.product.price * item.quantity) }} ₽</span>
         </li>
       {% endfor %}
     </ul>
