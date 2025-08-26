@@ -1,0 +1,75 @@
+<div id="checkout-form">
+  <h3 class="mb-3">Оформление заказа</h3>
+
+  <form
+    hx-post="/{{ salon_slug }}/checkout"
+    hx-target="#checkout-form"
+    hx-swap="none"
+  >
+    <div class="mb-3">
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="delivery_type" id="delivery" value="delivery"
+               {% if delivery_type != 'pickup' %}checked{% endif %}
+               hx-get="/{{ salon_slug }}/checkout?delivery_type=delivery" hx-target="#checkout-form" hx-swap="outerHTML">
+        <label class="form-check-label" for="delivery">Доставка</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="delivery_type" id="pickup" value="pickup"
+               {% if delivery_type == 'pickup' %}checked{% endif %}
+               hx-get="/{{ salon_slug }}/checkout?delivery_type=pickup" hx-target="#checkout-form" hx-swap="outerHTML">
+        <label class="form-check-label" for="pickup">Самовывоз</label>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Имя</label>
+      <input type="text" class="form-control" name="name" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Телефон</label>
+      <input type="text" class="form-control" name="phone" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-control" name="email">
+    </div>
+
+    {% if delivery_type == 'delivery' %}
+    <div class="mb-3">
+      <label class="form-label">Адрес</label>
+      <input type="text" class="form-control" name="address" required>
+    </div>
+    {% endif %}
+
+    <div class="mb-3">
+      <label class="form-label">Комментарий</label>
+      <textarea class="form-control" name="comment"></textarea>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Способ оплаты</label>
+      <select class="form-select" name="payment_method">
+        <option value="cash">Наличные</option>
+        <option value="card">Картой</option>
+      </select>
+    </div>
+
+    <p class="fw-bold text-end">Итого: {{ "%.2f"|format(total) }} ₽</p>
+    <button type="submit" class="btn btn-success w-100">Оформить</button>
+  </form>
+</div>
+
+<script>
+  document.addEventListener("htmx:afterRequest", function(evt) {
+    try {
+      const data = JSON.parse(evt.detail.xhr.response);
+      if (data.success) {
+        Telegram.WebApp.close();
+      }
+    } catch(e) {
+      console.error("Ошибка при закрытии миниаппа:", e);
+    }
+  });
+</script>

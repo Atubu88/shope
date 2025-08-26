@@ -28,8 +28,8 @@ from database.orm_query import (
 )
 
 
-logging.basicConfig(level=logging.DEBUG)
-
+DEBUG = os.getenv("DEBUG", "").lower() in {"1", "true", "yes"}
+logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO)
 
 templates = Jinja2Templates(directory="web_app/templates")
 
@@ -87,10 +87,11 @@ async def log_exceptions(request: Request, call_next):
         return await call_next(request)
     except Exception as e:
         logging.error("🔥 Ошибка при обработке запроса", exc_info=True)
-        return PlainTextResponse(
-            content=f"Ошибка: {str(e)}\n\n{traceback.format_exc()}",
-            status_code=500,
-        )
+        if DEBUG:
+            content = f"Ошибка: {str(e)}\n\n{traceback.format_exc()}"
+        else:
+            content = "Внутренняя ошибка сервера"
+        return PlainTextResponse(content=content, status_code=500)
 
 
 @app.get("/favicon.ico", include_in_schema=False)
@@ -303,6 +304,8 @@ async def load_category(
 
 from .routes.products import router as products_router
 from .routes.cart import router as cart_router
+from .routes.orders import router as orders_router
 
 app.include_router(products_router)
 app.include_router(cart_router)
+app.include_router(orders_router)

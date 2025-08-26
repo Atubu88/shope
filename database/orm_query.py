@@ -482,9 +482,13 @@ async def orm_clear_cart(session: AsyncSession, user_salon_id: int) -> None:
 async def orm_create_order(
     session: AsyncSession,
     user_salon_id: int,
+    name: str,
+    phone: str,
+    email: str | None,
     address: str | None,
-    phone: str | None,
-    payment_method: str | None,
+    delivery_type: str,
+    payment_method: str,
+    comment: str | None,
     cart_items: list,
     status: str = "NEW",
 ) -> "Order":
@@ -494,9 +498,13 @@ async def orm_create_order(
 
     order = Order(
         user_salon_id=user_salon_id,
-        address=address,
+        name=name,
         phone=phone,
+        email=email,
+        address=address,
+        delivery_type=delivery_type,
         payment_method=payment_method,
+        comment=comment,
         status=status,
         total=total,
     )
@@ -508,6 +516,7 @@ async def orm_create_order(
             OrderItem(
                 order_id=order.id,
                 product_id=item.product_id,
+                product_name=item.product.name,
                 quantity=item.quantity,
                 price=item.product.price,
             )

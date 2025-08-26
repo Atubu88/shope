@@ -145,9 +145,13 @@ class Order(Base):
     user_salon_id: Mapped[int] = mapped_column(
         ForeignKey('user_salon.id'), nullable=False
     )
+    name: Mapped[str] = mapped_column(String(150))
+    phone: Mapped[str] = mapped_column(String(20))
+    email: Mapped[str | None] = mapped_column(String(150), nullable=True)
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
-    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    payment_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    delivery_type: Mapped[str] = mapped_column(String(20))
+    payment_method: Mapped[str] = mapped_column(String(20))
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="NEW")
     total: Mapped[float] = mapped_column(Numeric(10, 2))
 
@@ -160,6 +164,7 @@ class OrderItem(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     order_id: Mapped[int] = mapped_column(ForeignKey('orders.id', ondelete='CASCADE'))
     product_id: Mapped[int] = mapped_column(ForeignKey('product.id'))
+    product_name: Mapped[str] = mapped_column(String(150))
     quantity: Mapped[int]
     price: Mapped[float] = mapped_column(Numeric(10, 2))
 

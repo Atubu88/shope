@@ -59,7 +59,7 @@
     </ul>
 
     <p class="fw-bold text-end" aria-live="polite">Итого: {{ "%.2f"|format(total) }} ₽</p>
-    <button type="button" class="btn btn-success w-100">Оформить заказ</button>
+    <a href="/{{ salon_slug }}/checkout" class="btn btn-success w-100">Оформить заказ</a>
   {% else %}
     <p>Корзина пуста</p>
   {% endif %}

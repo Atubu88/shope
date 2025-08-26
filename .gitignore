@@ -1,6 +1,6 @@
 # Секреты и переменные окружения
 .env
-
+.env.prod
 # Python artifacts
 __pycache__/
 *.pyc
