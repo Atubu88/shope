@@ -1,47 +1,88 @@
-import pytest
+"""
+Фикстуры для асинхронных тестов с чистой SQLite (aiosqlite).
+Создаёт таблицы один раз и выдаёт новую сессию на каждый тест.
+"""
+
+import asyncio
 import sys
 from pathlib import Path
+import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-# Добавляем корень проекта (pizza_bot) в sys.path
+# Добавляем корень проекта в sys.path для импортов пакета database и прочих модулей
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from database.orm_query import (
-    orm_add_to_cart,
-    orm_get_user_carts,
-    orm_delete_from_cart,
-    orm_create_order,
-    orm_update_order_status,
-)
+from database.models import Base, Salon, Category, Product, User, UserSalon
 
 
-@pytest.mark.asyncio
-async def test_add_to_cart_increments_quantity(session, sample_data):
-    _, user_salon, product = sample_data
-    await orm_add_to_cart(session, user_salon.id, product.id)
-    await orm_add_to_cart(session, user_salon.id, product.id)
-    carts = await orm_get_user_carts(session, user_salon.id)
-    assert len(carts) == 1
-    assert carts[0].quantity == 2
+@pytest.fixture(scope="session")
+def event_loop():
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
 
 
-@pytest.mark.asyncio
-async def test_delete_from_cart(session, sample_data):
-    _, user_salon, product = sample_data
-    await orm_add_to_cart(session, user_salon.id, product.id)
-    await orm_delete_from_cart(session, user_salon.id, product.id)
-    carts = await orm_get_user_carts(session, user_salon.id)
-    assert carts == []
+@pytest_asyncio.fixture(scope="function")
+async def engine():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False, future=True)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    try:
+        yield engine
+    finally:
+        await engine.dispose()
 
 
-@pytest.mark.asyncio
-async def test_order_total_and_status_update(session, sample_data):
-    salon, user_salon, product = sample_data
-    await orm_add_to_cart(session, user_salon.id, product.id)
-    await orm_add_to_cart(session, user_salon.id, product.id)
-    carts = await orm_get_user_carts(session, user_salon.id)
-    order = await orm_create_order(
-        session, user_salon.id, "addr", "123", "cash", carts
+@pytest_asyncio.fixture
+async def session(engine):
+    maker = async_sessionmaker(bind=engine, expire_on_commit=False, class_=AsyncSession)
+    async with maker() as s:
+        yield s
+
+
+@pytest_asyncio.fixture
+async def sample_data(session: AsyncSession):
+    """Создаёт минимальный набор: салон, категорию, товар, пользователя и связь UserSalon."""
+    import time
+    timestamp = int(time.time() * 1000)  # уникальный timestamp
+    
+    salon = Salon(
+        name=f"Salon1_{timestamp}", 
+        slug=f"salon1_{timestamp}", 
+        currency="USD", 
+        timezone="UTC"
     )
-    assert float(order.total) == pytest.approx(20.0)
-    updated = await orm_update_order_status(session, order.id, salon.id, "DONE")
-    assert updated.status == "DONE"
+    session.add(salon)
+    await session.flush()
+
+    category = Category(name=f"Pizza_{timestamp}", salon_id=salon.id)
+    session.add(category)
+    await session.flush()
+
+    product = Product(
+        name=f"Pepperoni_{timestamp}",
+        description="tasty",
+        price=10,
+        image="pep.jpg",
+        category_id=category.id,
+        salon_id=salon.id,
+    )
+    session.add(product)
+    await session.flush()
+
+    user = User(user_id=timestamp, is_super_admin=False, language="ru")
+    session.add(user)
+    await session.flush()
+
+    user_salon = UserSalon(
+        user_id=user.user_id,
+        salon_id=salon.id,
+        first_name="Ivan",
+        last_name="Petrov",
+        phone=f"+1000{timestamp}",
+    )
+    session.add(user_salon)
+    await session.commit()
+
+    return salon, user_salon, product

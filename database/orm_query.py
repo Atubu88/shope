@@ -596,20 +596,13 @@ async def orm_get_user_by_tg_and_salon(session, user_id: int, salon_id: int):
     return res.scalars().first()
 
 
-async def orm_get_user_salon(session, user_id: int, salon_id: int):
-    stmt = select(UserSalon).where(
-        UserSalon.user_id == user_id,
-        UserSalon.salon_id == salon_id
-    )
-    result = await session.execute(stmt)
-    return result.scalars().first()
 
 
-async def orm_touch_user_salon(session: AsyncSession, tg_user_id: int, salon_id: int) -> None:
-    """Пометить салон как последне-использованный (обновить updated)."""
+async def orm_touch_user_salon(session: AsyncSession, user_id: int, salon_id: int) -> None:
+    """Update ``updated`` timestamp for the UserSalon row."""
     await session.execute(
         update(UserSalon)
-        .where(UserSalon.user_id == tg_user_id, UserSalon.salon_id == salon_id)
+        .where(UserSalon.user_id == user_id, UserSalon.salon_id == salon_id)
         .values(updated=func.now())
     )
     await session.commit()
@@ -650,13 +643,3 @@ async def orm_get_last_salon_slug(session: AsyncSession, user_id: int) -> str | 
     result = await session.execute(stmt)
     user_salon = result.scalars().first()
     return user_salon.salon.slug if user_salon else None
-
-
-async def orm_touch_user_salon(session: AsyncSession, user_id: int, salon_id: int) -> None:
-    """Update ``updated`` timestamp for the UserSalon row."""
-    await session.execute(
-        update(UserSalon)
-        .where(UserSalon.user_id == user_id, UserSalon.salon_id == salon_id)
-        .values(updated=func.now())
-    )
-    await session.commit()
