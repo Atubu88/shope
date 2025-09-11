@@ -5,6 +5,7 @@ import hmac
 import json
 import os
 from urllib.parse import parse_qsl, urlencode
+import uuid
 
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
@@ -32,6 +33,7 @@ DEBUG = os.getenv("DEBUG", "").lower() in {"1", "true", "yes"}
 logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO)
 
 templates = Jinja2Templates(directory="web_app/templates")
+templates.env.globals["BOT_USERNAME"] = os.getenv("BOT_USERNAME", "")
 
 
 async def get_session() -> AsyncSession:
@@ -55,6 +57,7 @@ async def get_cart_count(
 
 
 def verify_init_data(init_data: str) -> dict | None:
+    """Проверка подписи init_data из Mini App или Login Widget."""
     token = os.getenv("TOKEN")
     if not token:
         logging.error("❌ Нет TOKEN в переменных окружения")
@@ -64,12 +67,16 @@ def verify_init_data(init_data: str) -> dict | None:
     received_hash = data.pop("hash", None)
     data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(data.items()))
 
-    secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256)
-    computed_hash = hmac.new(
-        secret.digest(), data_check_string.encode(), hashlib.sha256
+    secret_webapp = hmac.new(b"WebAppData", token.encode(), hashlib.sha256)
+    hash_webapp = hmac.new(
+        secret_webapp.digest(), data_check_string.encode(), hashlib.sha256
+    ).hexdigest()
+    secret_login = hashlib.sha256(token.encode()).digest()
+    hash_login = hmac.new(
+        secret_login, data_check_string.encode(), hashlib.sha256
     ).hexdigest()
 
-    if computed_hash != received_hash:
+    if received_hash not in {hash_webapp, hash_login}:
         logging.warning("⚠️ Подпись initData не совпала")
         return None
 
@@ -101,7 +108,19 @@ async def favicon() -> Response:
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request, session: AsyncSession = Depends(get_session)):
+    """Точка входа: принимает init_data или переводит гостя в первый салон."""
     init_data_raw = request.query_params.get("init_data")
+    user_agent = request.headers.get("User-Agent", "")
+    if not init_data_raw and "Telegram" not in user_agent:
+        guest_id = request.cookies.get("guest_id") or uuid.uuid4().hex
+        salons = await orm_get_salons(session)
+        if not salons:
+            raise HTTPException(status_code=404, detail="No salons configured")
+        response = RedirectResponse(url=f"/{salons[0].slug}/", status_code=307)
+        response.set_cookie(
+            "guest_id", guest_id, max_age=31536000, samesite="None", secure=True
+        )
+        return response
     if not init_data_raw:
         content = """
         <html><body>
@@ -181,11 +200,29 @@ async def index(
     cat: int | None = None,
     session: AsyncSession = Depends(get_session),
 ):
+    """Главная страница салона или гостевого режима."""
+    init_data = request.headers.get("X-Telegram-Init-Data") or request.query_params.get("init_data")
+    user_agent = request.headers.get("User-Agent", "")
+    if not init_data and "Telegram" not in user_agent:
+        guest_id = request.cookies.get("guest_id") or uuid.uuid4().hex
+        salons = await orm_get_salons(session)
+        if not salons:
+            raise HTTPException(status_code=404, detail="No salons configured")
+        first_slug = salons[0].slug
+        response = RedirectResponse(url=f"/{first_slug}/", status_code=307)
+        response.set_cookie(
+            "guest_id", guest_id, max_age=31536000, samesite="None", secure=True
+        )
+        if salon_slug != first_slug:
+            return response
+        guest_cookie = guest_id
+    else:
+        guest_cookie = request.cookies.get("guest_id")
+
     salon = await orm_get_salon_by_slug(session, salon_slug)
     if not salon:
         raise HTTPException(status_code=404, detail="Salon not found")
 
-    init_data = request.headers.get("X-Telegram-Init-Data") or request.query_params.get("init_data")
     user_salon_id_cookie = request.cookies.get("user_salon_id")
 
     payload = verify_init_data(init_data) if init_data else None
@@ -226,6 +263,10 @@ async def index(
             fn = (getattr(link, "first_name", "") or "").strip()
             ln = (getattr(link, "last_name", "") or "").strip()
             welcome_name = (f"{fn} {ln}".strip()) or fn or ln or None
+    else:
+        welcome_name = "Гость"
+        if not guest_cookie:
+            guest_cookie = uuid.uuid4().hex
 
     categories = await orm_get_categories(session, salon_id=salon.id)
     current_cat_id = cat or (categories[0].id if categories else None)
@@ -268,6 +309,14 @@ async def index(
         response.set_cookie(
             "user_salon_id",
             user_salon_id,
+            max_age=31536000,
+            samesite="None",
+            secure=True,
+        )
+    elif guest_cookie:
+        response.set_cookie(
+            "guest_id",
+            guest_cookie,
             max_age=31536000,
             samesite="None",
             secure=True,
