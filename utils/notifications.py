@@ -3,7 +3,7 @@ from aiogram.types import (
 )
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
-from database.orm_query import orm_get_salon_by_id
+from database.repositories.salon_repository import SalonRepository
 from database.models import UserSalon
 from utils.orders import get_order_summary
 
@@ -37,7 +37,7 @@ async def notify_salon_about_order(
         print(f"[notify] salon_id не найден для user_id={user_id}")
         return
 
-    salon = await orm_get_salon_by_id(session, user.salon_id)
+    salon = await SalonRepository(session).get_salon_by_id(user.salon_id)
     if not salon or not salon.group_chat_id:
         print(f"[notify] group_chat_id не найден для salon_id={user.salon_id}")
         return

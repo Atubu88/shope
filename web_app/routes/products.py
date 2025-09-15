@@ -3,7 +3,8 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import UserSalon
-from database.orm_query import orm_get_category, orm_get_product, orm_get_salon_by_slug
+from database.orm_query import orm_get_category, orm_get_product
+from database.repositories.salon_repository import SalonRepository
 
 from ..web_main import get_cart_count, get_session, templates
 
@@ -17,7 +18,7 @@ async def product_detail(
     product_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    salon = await orm_get_salon_by_slug(session, salon_slug)
+    salon = await SalonRepository(session).get_salon_by_slug(salon_slug)
     if not salon:
         raise HTTPException(status_code=404, detail="Salon not found")
 

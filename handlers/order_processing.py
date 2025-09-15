@@ -14,11 +14,11 @@ from utils.geo import haversine, calc_delivery_cost, get_address_from_coords
 from database.orm_query import (
     orm_get_user_carts,
     orm_get_user,
-    orm_get_salon_by_id,
     orm_clear_cart,
     orm_create_order,
     orm_get_user_salons, orm_get_orders_count,
 )
+from database.repositories.salon_repository import SalonRepository
 from database.models import UserSalon
 from utils.i18n import _, i18n
 
@@ -146,7 +146,7 @@ async def receive_location(message: types.Message, state: FSMContext, session: A
     # --- расчёт доставки ------------------------------------------------
     user_salon_id = data.get("user_salon_id")
     user = await session.get(UserSalon, user_salon_id) if user_salon_id else await orm_get_user(session, message.from_user.id)
-    salon    = await orm_get_salon_by_id(session, user.salon_id) if user else None
+    salon    = await SalonRepository(session).get_salon_by_id(user.salon_id) if user else None
 
     if not salon.latitude or not salon.longitude:
         await message.answer(_("Ошибка: координаты салона не заданы."))
@@ -465,7 +465,7 @@ async def confirm_order(callback: CallbackQuery,
     if user_salon_id and cart_items:
         user_salon = await session.get(UserSalon, user_salon_id)
         salon = (
-            await orm_get_salon_by_id(session, user_salon.salon_id)
+            await SalonRepository(session).get_salon_by_id(user_salon.salon_id)
             if user_salon
             else None
         )
@@ -573,7 +573,7 @@ async def choose_delivery_pickup(callback: CallbackQuery, state: FSMContext, ses
     if user and not user_salon_id:
         user_salon_id = user.id
         await state.update_data(user_salon_id=user_salon_id)
-    salon = await orm_get_salon_by_id(session, user.salon_id) if user else None
+    salon = await SalonRepository(session).get_salon_by_id(user.salon_id) if user else None
 
     # --- Генерируем ссылку на карту, если есть координаты ---
     if salon.latitude and salon.longitude:

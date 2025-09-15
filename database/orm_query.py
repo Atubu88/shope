@@ -1,4 +1,3 @@
-import math
 from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
@@ -6,89 +5,6 @@ from common.texts_for_db import  description_for_info_pages, images_for_info_pag
 from database.models import Banner, Cart, Category, Product, User, Salon, UserSalon
 
 
-
-############################ Салоны ###########################################
-# database/orm_query.py
-async def get_salon_name_by_id(session, salon_id):
-    from database.models import Salon
-    salon = await session.get(Salon, salon_id)
-    return salon.name if salon else None
-
-
-async def orm_get_salons(session: AsyncSession):
-    result = await session.execute(select(Salon))
-    return result.scalars().all()
-
-
-async def orm_create_salon(
-    session: AsyncSession,
-    name: str,
-    slug: str,
-    currency: str,
-    timezone: str | None = "UTC",
-) -> Salon:
-    stmt = select(Salon).where((Salon.name == name) | (Salon.slug == slug))
-    result = await session.execute(stmt)
-    salon = result.scalar_one_or_none()
-
-    if salon:
-        raise ValueError("Salon with this name or slug already exists")
-    new_salon = Salon(
-        name=name,
-        slug=slug,
-        currency=currency,
-        timezone=timezone or "UTC",
-        free_plan=True,
-        order_limit=30,
-    )
-    session.add(new_salon)
-    await session.commit()
-    await session.refresh(new_salon)
-    return new_salon
-
-
-async def orm_set_salon_timezone(
-    session: AsyncSession, salon_id: int, tz_name: str
-) -> None:
-    await session.execute(
-        update(Salon).where(Salon.id == salon_id).values(timezone=tz_name)
-    )
-    await session.commit()
-
-
-async def orm_get_salon_by_slug(session: AsyncSession, slug: str) -> Salon | None:
-    result = await session.execute(select(Salon).where(Salon.slug == slug))
-    return result.scalar_one_or_none()
-
-async def orm_update_salon_location(
-    session: AsyncSession, salon_id: int, latitude: float, longitude: float
-) -> None:
-    await session.execute(
-        update(Salon)
-        .where(Salon.id == salon_id)
-        .values(latitude=latitude, longitude=longitude)
-    )
-    await session.commit()
-
-async def orm_update_salon_group_chat(
-    session: AsyncSession, salon_id: int, group_chat_id: int
-) -> None:
-    await session.execute(
-        update(Salon)
-        .where(Salon.id == salon_id)
-        .values(group_chat_id=group_chat_id)
-    )
-    await session.commit()
-
-
-async def orm_get_salon_by_id(session, salon_id: int):
-    """
-    Получить салон по его ID (асинхронно для SQLAlchemy 2.x).
-    """
-    result = await session.execute(
-        select(Salon).where(Salon.id == salon_id)
-    )
-    return result.scalars().first()
 
 ############### Работа с баннерами (информационными страницами) ###############
 

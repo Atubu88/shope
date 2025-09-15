@@ -1,7 +1,7 @@
 import re
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.orm_query import orm_get_salon_by_slug
+from database.repositories.salon_repository import SalonRepository
 
 
 def slugify(text: str) -> str:
@@ -21,8 +21,9 @@ def slugify(text: str) -> str:
 async def generate_unique_slug(session: AsyncSession, text: str) -> str:
     base = slugify(text)
     slug = base
+    repo = SalonRepository(session)
     counter = 1
-    while await orm_get_salon_by_slug(session, slug):
+    while await repo.get_salon_by_slug(slug):
         slug = f"{base}-{counter}"
         counter += 1
     return slug

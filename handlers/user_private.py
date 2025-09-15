@@ -7,11 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import User
 from database.orm_query import (
     orm_get_user_salons,
-    orm_get_salon_by_slug,
     orm_get_user_salon,
     orm_add_user,
     orm_touch_user_salon,   # MRU: пометить «последний»
 )
+from database.repositories.salon_repository import SalonRepository
 
 user_private_router = Router()
 
@@ -39,7 +39,7 @@ async def start_cmd(message: types.Message, session: AsyncSession):
     parts = (message.text or "").split(maxsplit=1)
     slug = parts[1] if len(parts) > 1 else None
     if slug:
-        salon = await orm_get_salon_by_slug(session, slug)
+        salon = await SalonRepository(session).get_salon_by_slug(slug)
         if salon:
             link = await orm_get_user_salon(session, tg_id, salon.id)
             if not link:
@@ -95,7 +95,7 @@ async def cmd_salon(message: types.Message, session: AsyncSession):
 async def choose_salon_callback(cb: types.CallbackQuery, session: AsyncSession):
     slug = cb.data.split(":", 1)[1]
     tg_id = cb.from_user.id
-    salon = await orm_get_salon_by_slug(session, slug)
+    salon = await SalonRepository(session).get_salon_by_slug(slug)
     if not salon:
         await cb.answer("Салон не найден", show_alert=True)
         return

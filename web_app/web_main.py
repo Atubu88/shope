@@ -19,13 +19,12 @@ from database.orm_query import (
     orm_get_categories,
     orm_get_last_salon_slug,
     orm_get_products,
-    orm_get_salon_by_slug,
-    orm_get_salons,
     orm_get_user_salon,
     orm_get_user_salons,
     orm_touch_user_salon,
     orm_get_category,
 )
+from database.repositories.salon_repository import SalonRepository
 
 
 DEBUG = os.getenv("DEBUG", "").lower() in {"1", "true", "yes"}
@@ -163,7 +162,7 @@ async def root(request: Request, session: AsyncSession = Depends(get_session)):
         slug = await orm_get_last_salon_slug(session, user_id)
 
     if not slug:
-        salons = await orm_get_salons(session)
+        salons = await SalonRepository(session).get_salons()
         if not salons:
             raise HTTPException(status_code=404, detail="No salons configured")
         slug = salons[0].slug
@@ -181,7 +180,7 @@ async def index(
     cat: int | None = None,
     session: AsyncSession = Depends(get_session),
 ):
-    salon = await orm_get_salon_by_slug(session, salon_slug)
+    salon = await SalonRepository(session).get_salon_by_slug(salon_slug)
     if not salon:
         raise HTTPException(status_code=404, detail="Salon not found")
 
@@ -283,7 +282,7 @@ async def load_category(
     cat_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    salon = await orm_get_salon_by_slug(session, salon_slug)
+    salon = await SalonRepository(session).get_salon_by_slug(salon_slug)
     if not salon:
         raise HTTPException(status_code=404, detail="Salon not found")
 

@@ -10,7 +10,8 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.supabase_storage import upload_photo_from_telegram
-from database.orm_query import orm_add_product, orm_get_categories, orm_get_salon_by_id
+from database.orm_query import orm_add_product, orm_get_categories
+from database.repositories.salon_repository import SalonRepository
 from utils.currency import get_currency_symbol
 from .menu import show_admin_menu
 
@@ -142,7 +143,7 @@ async def process_photo(message: Message, state: FSMContext, session: AsyncSessi
     await state.update_data(image=photo_url)
     data = await state.get_data()
     salon_id = data.get("salon_id")  # <-- снова достаем актуальный salon_id
-    salon = await orm_get_salon_by_id(session, salon_id)
+    salon = await SalonRepository(session).get_salon_by_id(salon_id)
     currency = get_currency_symbol(salon.currency) if salon else "RUB"
     caption = (
         f"<b>{data['name']}</b>\n{data['description']}\nЦена: {data['price']}{currency}"

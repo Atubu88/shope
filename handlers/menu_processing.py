@@ -14,8 +14,8 @@ from database.orm_query import (
     orm_get_products,
     orm_get_user_carts,
     orm_reduce_product_in_cart,
-    orm_get_salon_by_id,
 )
+from database.repositories.salon_repository import SalonRepository
 from kbds.inline import (
     get_products_btns,
     get_user_cart,
@@ -136,7 +136,7 @@ async def products(
             )
 
         product = page_items[0]
-        salon = await orm_get_salon_by_id(session, salon_id)
+        salon = await SalonRepository(session).get_salon_by_id(salon_id)
         currency = get_currency_symbol(salon.currency) if salon else get_currency_symbol("RUB")
 
         image = get_image_banner(
@@ -213,7 +213,7 @@ async def carts(
     page_items = paginator.get_page()
     cart = page_items[0]
 
-    salon = await orm_get_salon_by_id(session, salon_id)
+    salon = await SalonRepository(session).get_salon_by_id(salon_id)
     currency = get_currency_symbol(salon.currency) if salon else get_currency_symbol("RUB")
 
     cart_price = round(cart.quantity * cart.product.price, 2)

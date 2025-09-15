@@ -21,10 +21,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import User
 
 from database.orm_query import (
-    orm_create_salon,
     init_default_salon_content,
     orm_add_user,
 )
+from database.repositories.salon_repository import SalonRepository
 from filters.chat_types import ChatTypeFilter
 from utils.slug import generate_unique_slug
 from utils.i18n import _
@@ -280,7 +280,9 @@ async def salon_phone(message: types.Message, state: FSMContext, session: AsyncS
     last_name = message.contact.last_name
 
     try:
-        salon = await orm_create_salon(session, name, slug, currency, timezone_name)
+        salon = await SalonRepository(session).create_salon(
+            name, slug, currency, timezone_name
+        )
     except ValueError:
         await message.answer(
             _("Салон с таким названием или слагом уже существует."),

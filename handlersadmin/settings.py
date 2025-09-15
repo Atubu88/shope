@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import Salon
 from .menu import show_admin_menu
-from database.orm_query import orm_update_salon_location, orm_get_user, orm_update_salon_group_chat
+from database.repositories.salon_repository import SalonRepository
 from filters.chat_types import IsAdmin
 from aiogram import types
 from aiogram.filters import Command, CommandObject
@@ -81,8 +81,7 @@ async def save_location(message: Message, state: FSMContext, session: AsyncSessi
     data = await state.get_data()
     salon_id = data.get("salon_id")
     if salon_id:
-        await orm_update_salon_location(
-            session,
+        await SalonRepository(session).update_salon_location(
             salon_id,
             message.location.latitude,
             message.location.longitude,

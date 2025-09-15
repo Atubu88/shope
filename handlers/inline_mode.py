@@ -17,8 +17,8 @@ from database.orm_query import (
     orm_get_user_salons,
     orm_get_products,
     orm_get_categories,
-    orm_get_salon_by_id,
 )
+from database.repositories.salon_repository import SalonRepository
 from utils.currency import get_currency_symbol
 
 inline_router = Router()
@@ -98,7 +98,7 @@ async def answer_products_inline(inline_query: InlineQuery, session: AsyncSessio
     else:
         products = await orm_get_products(session, salon_id=salon_id)
 
-    salon = await orm_get_salon_by_id(session, salon_id)
+    salon = await SalonRepository(session).get_salon_by_id(salon_id)
     currency = get_currency_symbol(salon.currency) if salon else "RUB"
 
     results = []
