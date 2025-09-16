@@ -1,116 +1,310 @@
-from aiogram import types, Router, F
-from aiogram.filters import CommandStart, Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram import F, types, Router
+from aiogram.filters import CommandStart, Command, StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.types import Message
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import User
+from utils.i18n import _, i18n  # ✅ единый i18n и gettext
+from common.bot_cmds_list import set_commands
+from database.models import Salon, User, UserSalon
 from database.orm_query import (
+    orm_add_to_cart,
+    orm_add_user,
+    orm_get_salons,
     orm_get_user_salons,
     orm_get_salon_by_slug,
-    orm_get_user_salon,
-    orm_add_user,
-    orm_touch_user_salon,   # MRU: пометить «последний»
+    orm_get_product,
+    orm_get_products,
+    orm_get_user,
+    orm_set_user_language,
 )
 
+from filters.chat_types import ChatTypeFilter
+from handlers.invite_creation import InviteFilter
+from handlers.menu_processing import get_menu_content, products
+from kbds.inline import MenuCallBack, SalonCallBack, get_salon_btns
+
+
 user_private_router = Router()
+user_private_router.message.filter(ChatTypeFilter(["private"]))
 
-def salons_choice_kb(pairs: list[tuple[str, str]]) -> InlineKeyboardMarkup:
-    rows = [[InlineKeyboardButton(text=title, callback_data=f"choose_salon:{slug}")]
-            for title, slug in pairs]
-    return InlineKeyboardMarkup(inline_keyboard=rows)
 
-@user_private_router.message(CommandStart())
-async def start_cmd(message: types.Message, session: AsyncSession):
-    """/start <slug?> — регистрируем юзера, при наличии slug — привязываем и помечаем MRU.
-       Если slug нет — сразу даём выбор салона.
+@user_private_router.message(Command("language"))
+async def cmd_language(message: types.Message, session: AsyncSession):
     """
-    tg_id = message.from_user.id
+    Выбор языка. Локаль подтягивается из БД и выставляется на время апдейта,
+    чтобы кнопки и текст сразу были на нужном языке.
+    """
+    # 1) подтянем язык пользователя из БД
+    lang = await session.scalar(
+        select(User.language).where(User.user_id == message.from_user.id)
+    )
+    if lang:
+        # 2) выставим локаль на этот апдейт
+        i18n.ctx_locale.set(lang)
 
-    # 1) создать User, если нет
-    result = await session.execute(select(User).where(User.user_id == tg_id))
+    # 3) теперь строки переведутся правильно
+    kb = InlineKeyboardBuilder()
+    kb.button(text=_("Русский"), callback_data="setlang_ru")
+    kb.button(text=_("English"), callback_data="setlang_en")
+    kb.adjust(2)
+
+    await message.answer(_("Выберите язык"), reply_markup=kb.as_markup())
+
+
+@user_private_router.callback_query(StateFilter(None), F.data.startswith("setlang_"))
+async def set_language(callback: types.CallbackQuery, session: AsyncSession, state: FSMContext):
+    lang = callback.data.split("_", 1)[1]
+    await orm_set_user_language(session, callback.from_user.id, lang)
+    i18n.ctx_locale.set(lang)
+    await callback.message.edit_text(_("Язык обновлён"))
+    await callback.answer()
+    start_message = callback.message.model_copy(
+        update={"from_user": callback.from_user, "text": "/start"}
+    )
+    await start_cmd(start_message, state, session)
+
+
+
+@user_private_router.message(CommandStart(), ~InviteFilter())
+async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSession):
+    await state.clear()
+
+    args = message.text.split()
+    param = args[1] if len(args) > 1 else None
+    user_id = message.from_user.id
+
+    # создаём пользователя, если его ещё нет
+    result = await session.execute(select(User).where(User.user_id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        user = User(user_id=tg_id, language=message.from_user.language_code or "ru")
+        user = User(
+            user_id=user_id,
+            language=message.from_user.language_code or "ru",
+        )
         session.add(user)
         await session.commit()
 
-    # 2) поймать payload после /start (если пришли по ?startapp=<slug>)
-    parts = (message.text or "").split(maxsplit=1)
-    slug = parts[1] if len(parts) > 1 else None
-    if slug:
-        salon = await orm_get_salon_by_slug(session, slug)
-        if salon:
-            link = await orm_get_user_salon(session, tg_id, salon.id)
-            if not link:
-                await orm_add_user(
-                    session,
-                    user_id=tg_id,
-                    salon_id=salon.id,
-                    first_name=message.from_user.first_name,
-                    last_name=message.from_user.last_name,
-                )
-            # MRU: пометить как «последний использованный»
-            await orm_touch_user_salon(session, tg_id, salon.id)
+    # подтянем запись с правами/языком
+    user_record = await orm_get_user(session, user_id)
+    if user_record and user_record.user and user_record.user.language:
+        i18n.ctx_locale.set(user_record.user.language)
+
+    # команды бота с учётом ролей
+    is_admin = bool(user_record and (user_record.is_super_admin or user_record.is_salon_admin))
+    await set_commands(message.bot, user_id, is_admin)
+
+    # если салонов нет
+    salons = await orm_get_salons(session)
+    if not salons:
+        if user.id == 1:
+            user.is_super_admin = True
+            await session.commit()
             await message.answer(
-                f"Салон <b>{salon.name}</b> подключён ✅\n"
-                f"Нажми встроенную кнопку «Открыть» в меню Mini App.",
-                parse_mode="HTML",
+                _("✅ Вы стали суперадмином.\nСоздайте первый салон командой /create_salon")
             )
+        else:
+            await message.answer(_("Салонов пока нет. Обратитесь к администратору."))
+        return
+
+    # пробуем определить салон по параметру /start
+    salon = None
+    if param:
+        if "-" in param:
+            slug, _suffix = param.rsplit("-", 1)
+            salon = await orm_get_salon_by_slug(session, slug)
+        elif param.isdigit():
+            salon = await session.get(Salon, int(param))
+        else:
+            salon = await orm_get_salon_by_slug(session, param)
+
+    # если салон определён — привяжем пользователя и зайдём в меню
+    if salon:
+        user_salon = await orm_add_user(
+            session,
+            user_id=user_id,
+            salon_id=salon.id,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name,
+        )
+        await state.update_data(user_salon_id=user_salon.id)
+        await message.answer(
+            _("Вы находитесь в салоне: <b>{name}</b>").format(name=salon.name),
+            parse_mode="HTML",
+        )
+        media, reply_markup = await get_menu_content(
+            session, level=0, menu_name="main", user_salon_id=user_salon.id
+        )
+        await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
+        return
+
+    # ➜ показываем только те салоны, к которым пользователь уже привязан
+    user_salons = await orm_get_user_salons(session, user_id)
+
+    # 0 салонов — сообщаем, что доступа пока нет
+    if not user_salons:
+        await message.answer(
+            _(
+                "У вас пока нет салонов. Попросите администратора прислать пригласительную ссылку или создайте собственный салон по инвайту."
+            )
+        )
+        return
+
+    # 1 салон — сразу заходим в него
+    if len(user_salons) == 1:
+        us = user_salons[0]
+        await state.update_data(user_salon_id=us.id)
+        await message.answer(
+            _("Вы находитесь в салоне: <b>{name}</b>").format(name=us.salon.name),
+            parse_mode="HTML",
+        )
+        media, reply_markup = await get_menu_content(
+            session, level=0, menu_name="main", user_salon_id=us.id
+        )
+        await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
+        return
+
+    # >1 салонов — даём пользователю выбрать среди своих
+    await message.answer(
+        _("Выберите салон:"),
+        reply_markup=get_salon_btns([us.salon for us in user_salons]),
+    )
+
+
+async def add_to_cart(
+    callback: types.CallbackQuery,
+    callback_data: MenuCallBack,
+    session: AsyncSession,
+    state: FSMContext,
+):
+    data = await state.get_data()
+    user_salon_id = data.get("user_salon_id")
+    if not user_salon_id:
+        await callback.answer(_("Салон не выбран."))
+        return
+
+    await orm_add_to_cart(
+        session,
+        user_salon_id=user_salon_id,
+        product_id=callback_data.product_id,
+    )
+    await callback.answer(_("Товар добавлен в корзину."))
+
+
+@user_private_router.callback_query(SalonCallBack.filter())
+async def choose_salon(
+    callback: types.CallbackQuery,
+    callback_data: SalonCallBack,
+    session: AsyncSession,
+    state: FSMContext,
+):
+    user_salon = await orm_add_user(
+        session,
+        user_id=callback.from_user.id,
+        salon_id=callback_data.salon_id,
+        first_name=callback.from_user.first_name,
+        last_name=callback.from_user.last_name,
+    )
+    await state.update_data(user_salon_id=user_salon.id)
+
+    # выставим язык пользователя, если он есть
+    if user_salon.user and user_salon.user.language:
+        i18n.ctx_locale.set(user_salon.user.language)
+
+    media, reply_markup = await get_menu_content(
+        session,
+        level=0,
+        menu_name="main",
+        user_salon_id=user_salon.id,
+    )
+    await callback.message.edit_text(_("Салон выбран"))
+    await callback.message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
+
+
+@user_private_router.callback_query(MenuCallBack.filter())
+async def user_menu(
+    callback: types.CallbackQuery,
+    callback_data: MenuCallBack,
+    session: AsyncSession,
+    state: FSMContext,
+):
+    if callback_data.menu_name == "add_to_cart":
+        await add_to_cart(callback, callback_data, session, state)
+        return
+
+    data = await state.get_data()
+    user_salon_id = data.get("user_salon_id")
+
+    if not user_salon_id:
+        await callback.answer(_("Салон не выбран. Перезапустите бота командой /start."))
+        return
+
+    media, reply_markup = await get_menu_content(
+        session,
+        level=callback_data.level,
+        menu_name=callback_data.menu_name,
+        category=callback_data.category,
+        page=callback_data.page,
+        product_id=callback_data.product_id,
+        user_salon_id=user_salon_id,
+    )
+
+    await callback.message.edit_media(media=media, reply_markup=reply_markup)
+    await callback.answer()
+
+
+@user_private_router.message(F.text.startswith("/product_"))
+async def show_product(message: Message, session: AsyncSession, state: FSMContext):
+    try:
+        product_id = int(message.text.split("_")[1])
+
+        data = await state.get_data()
+        user_salon_id = data.get("user_salon_id")
+        if not user_salon_id:
+            await message.answer(_("Салон не выбран. Перезапустите /start."))
             return
 
-    # 3) без payload — сразу показать список салонов для выбора
-    rows = await orm_get_user_salons(session, tg_id)
-    salons: list[tuple[str, str]] = []
-    for row in rows:
-        if hasattr(row, "salon") and row.salon:
-            salons.append((row.salon.name, row.salon.slug))
-        elif hasattr(row, "name") and hasattr(row, "slug"):
-            salons.append((row.name, row.slug))
+        user_salon = await session.get(UserSalon, user_salon_id)
+        if not user_salon:
+            await message.answer(_("Салон не найден. Перезапустите /start."))
+            return
 
-    if not salons:
-        await message.answer("У тебя пока нет привязанных салонов.")
-        return
+        salon_id = user_salon.salon_id
 
-    await message.answer("Выбери салон:", reply_markup=salons_choice_kb(salons))
+        product = await orm_get_product(session, product_id, salon_id=salon_id)
+        if not product:
+            await message.answer(_("Товар не найден!"))
+            return
 
+        products_in_cat = await orm_get_products(
+            session, category_id=product.category_id, salon_id=salon_id
+        )
+        product_ids = [p.id for p in products_in_cat]
+        if product_id not in product_ids:
+            await message.answer(_("Товар не найден в этой категории!"))
+            return
 
-@user_private_router.message(Command("salon"))
-async def cmd_salon(message: types.Message, session: AsyncSession):
-    tg_id = message.from_user.id
-    rows = await orm_get_user_salons(session, tg_id)  # верни список Salon или UserSalon.salon
-    salons: list[tuple[str, str]] = []
-    for row in rows:
-        if hasattr(row, "salon") and row.salon:
-            salons.append((row.salon.name, row.salon.slug))
-        elif hasattr(row, "name") and hasattr(row, "slug"):
-            salons.append((row.name, row.slug))
+        idx = product_ids.index(product_id)
+        page = idx + 1
 
-    if not salons:
-        return await message.answer("У тебя пока нет привязанных салонов.")
+        image, kbds = await products(
+            session,
+            level=2,
+            category=product.category_id,
+            page=page,
+            salon_id=salon_id,
+        )
 
-    await message.answer("Выбери салон:", reply_markup=salons_choice_kb(salons))
+        await message.answer_photo(
+            image.media,
+            caption=image.caption,
+            reply_markup=kbds,
+            parse_mode="HTML",
+        )
 
-@user_private_router.callback_query(F.data.startswith("choose_salon:"))
-async def choose_salon_callback(cb: types.CallbackQuery, session: AsyncSession):
-    slug = cb.data.split(":", 1)[1]
-    tg_id = cb.from_user.id
-    salon = await orm_get_salon_by_slug(session, slug)
-    if not salon:
-        await cb.answer("Салон не найден", show_alert=True)
-        return
-
-    # Убедимся, что есть связь, если нет — создадим
-    link = await orm_get_user_salon(session, tg_id, salon.id)
-    if not link:
-        await orm_add_user(session, user_id=tg_id, salon_id=salon.id)
-
-    # MRU: пометить как «последний»
-    await orm_touch_user_salon(session, tg_id, salon.id)
-
-    await cb.message.answer(
-        f"Выбран салон <b>{salon.name}</b> ✅\n"
-        f"Теперь нажми встроенную кнопку «Открыть» в меню Mini App.",
-        parse_mode="HTML",
-    )
-    await cb.answer()
+    except Exception as e:
+        print(f"[show_product] Ошибка: {e}")
+        await message.answer(_("Ошибка при загрузке товара."))

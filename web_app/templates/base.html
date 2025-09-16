@@ -85,6 +85,35 @@
       <strong>{{ salon_name or 'none' }}</strong> (slug: <code>{{ salon_slug or 'none' }}</code>)
     </div>
 
+    {% if not user_payload and BOT_USERNAME %}
+    <div class="mb-3">
+      <script async src="https://telegram.org/js/telegram-widget.js?22"
+              data-telegram-login="{{ BOT_USERNAME }}"
+              data-size="medium"
+              data-onauth="onTelegramAuth(user)"
+              data-request-access="write"></script>
+      <script>
+        function onTelegramAuth(user) {
+          const data = {
+            user: JSON.stringify({
+              id: user.id,
+              first_name: user.first_name,
+              last_name: user.last_name,
+              username: user.username,
+              photo_url: user.photo_url
+            }),
+            auth_date: user.auth_date,
+            hash: user.hash
+          };
+          const qs = new URLSearchParams(data).toString();
+          const url = new URL(window.location.href);
+          url.searchParams.set('init_data', qs);
+          window.location.href = url.toString();
+        }
+      </script>
+    </div>
+    {% endif %}
+
     {% block content %}{% endblock %}
 </div>
 
