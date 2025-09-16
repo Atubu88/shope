@@ -9,18 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from utils.i18n import _, i18n  # ✅ единый i18n и gettext
 from common.bot_cmds_list import set_commands
-from database.models import Salon, User, UserSalon
+from database.models import User, UserSalon
 from database.orm_query import (
     orm_add_to_cart,
     orm_add_user,
-    orm_get_salons,
     orm_get_user_salons,
-    orm_get_salon_by_slug,
     orm_get_product,
     orm_get_products,
     orm_get_user,
     orm_set_user_language,
 )
+from database.repositories import SalonRepository
 
 from filters.chat_types import ChatTypeFilter
 from handlers.invite_creation import InviteFilter
@@ -77,6 +76,7 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
     param = args[1] if len(args) > 1 else None
     user_id = message.from_user.id
 
+    repo = SalonRepository(session)
     # создаём пользователя, если его ещё нет
     result = await session.execute(select(User).where(User.user_id == user_id))
     user = result.scalar_one_or_none()
@@ -98,7 +98,7 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
     await set_commands(message.bot, user_id, is_admin)
 
     # если салонов нет
-    salons = await orm_get_salons(session)
+    salons = await repo.list()
     if not salons:
         if user.id == 1:
             user.is_super_admin = True
@@ -115,11 +115,11 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
     if param:
         if "-" in param:
             slug, _suffix = param.rsplit("-", 1)
-            salon = await orm_get_salon_by_slug(session, slug)
+            salon = await repo.get_by_slug(slug)
         elif param.isdigit():
-            salon = await session.get(Salon, int(param))
+            salon = await repo.get_by_id(int(param))
         else:
-            salon = await orm_get_salon_by_slug(session, param)
+            salon = await repo.get_by_slug(param)
 
     # если салон определён — привяжем пользователя и зайдём в меню
     if salon:

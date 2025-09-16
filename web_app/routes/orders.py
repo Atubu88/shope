@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database.models import Cart, UserSalon
-from database.orm_query import orm_create_order, orm_get_salon_by_slug
+from database.orm_query import orm_create_order
+from database.repositories import SalonRepository
 from ..web_main import get_session, templates
 
 
@@ -45,7 +46,8 @@ async def checkout_page(
     if not user_salon_id:
         raise HTTPException(401, "User not identified")
 
-    salon = await orm_get_salon_by_slug(session, salon_slug)
+    repo = SalonRepository(session)
+    salon = await repo.get_by_slug(salon_slug)
     if not salon:
         raise HTTPException(status_code=404, detail="Salon not found")
 
@@ -94,7 +96,8 @@ async def checkout_submit(
     if not user_salon_id:
         return JSONResponse({"success": False, "error": "User not identified"}, status_code=401)
 
-    salon = await orm_get_salon_by_slug(session, salon_slug)
+    repo = SalonRepository(session)
+    salon = await repo.get_by_slug(salon_slug)
     if not salon:
         return JSONResponse({"success": False, "error": "Salon not found"}, status_code=404)
 

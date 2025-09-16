@@ -10,12 +10,11 @@ from aiogram.types import (
 )
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import Salon
 from .menu import show_admin_menu
-from database.orm_query import orm_update_salon_location, orm_get_user, orm_update_salon_group_chat
+from database.orm_query import orm_get_user
+from database.repositories import SalonRepository
 from filters.chat_types import IsAdmin
 from aiogram import types
 from aiogram.filters import Command, CommandObject
@@ -81,8 +80,8 @@ async def save_location(message: Message, state: FSMContext, session: AsyncSessi
     data = await state.get_data()
     salon_id = data.get("salon_id")
     if salon_id:
-        await orm_update_salon_location(
-            session,
+        repo = SalonRepository(session)
+        await repo.update_location(
             salon_id,
             message.location.latitude,
             message.location.longitude,
@@ -122,15 +121,14 @@ async def set_group(message: types.Message, command: CommandObject, session: Asy
         return
 
     # Ищем салон по slug
-    res = await session.execute(select(Salon).where(Salon.slug == slug))
-    salon = res.scalars().first()
+    repo = SalonRepository(session)
+    salon = await repo.get_by_slug(slug)
     if not salon:
         await message.reply("Салон не найден. Проверь slug.", parse_mode=None)
         return
 
     # Сохраняем chat_id группы в салон
-    salon.group_chat_id = message.chat.id
-    await session.commit()
+    await repo.update_group_chat(salon.id, message.chat.id)
 
     await message.reply(f"Группа привязана к салону: {salon.name}", parse_mode=None)
 

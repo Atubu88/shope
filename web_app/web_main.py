@@ -20,13 +20,12 @@ from database.orm_query import (
     orm_get_categories,
     orm_get_last_salon_slug,
     orm_get_products,
-    orm_get_salon_by_slug,
-    orm_get_salons,
     orm_get_user_salon,
     orm_get_user_salons,
     orm_touch_user_salon,
     orm_get_category,
 )
+from database.repositories import SalonRepository
 
 
 DEBUG = os.getenv("DEBUG", "").lower() in {"1", "true", "yes"}
@@ -111,9 +110,10 @@ async def root(request: Request, session: AsyncSession = Depends(get_session)):
     """Точка входа: принимает init_data или переводит гостя в первый салон."""
     init_data_raw = request.query_params.get("init_data")
     user_agent = request.headers.get("User-Agent", "")
+    repo = SalonRepository(session)
     if not init_data_raw and "Telegram" not in user_agent:
         guest_id = request.cookies.get("guest_id") or uuid.uuid4().hex
-        salons = await orm_get_salons(session)
+        salons = await repo.list()
         if not salons:
             raise HTTPException(status_code=404, detail="No salons configured")
         response = RedirectResponse(url=f"/{salons[0].slug}/", status_code=307)
@@ -182,7 +182,7 @@ async def root(request: Request, session: AsyncSession = Depends(get_session)):
         slug = await orm_get_last_salon_slug(session, user_id)
 
     if not slug:
-        salons = await orm_get_salons(session)
+        salons = await repo.list()
         if not salons:
             raise HTTPException(status_code=404, detail="No salons configured")
         slug = salons[0].slug
@@ -201,11 +201,12 @@ async def index(
     session: AsyncSession = Depends(get_session),
 ):
     """Главная страница салона или гостевого режима."""
+    repo = SalonRepository(session)
     init_data = request.headers.get("X-Telegram-Init-Data") or request.query_params.get("init_data")
     user_agent = request.headers.get("User-Agent", "")
     if not init_data and "Telegram" not in user_agent:
         guest_id = request.cookies.get("guest_id") or uuid.uuid4().hex
-        salons = await orm_get_salons(session)
+        salons = await repo.list()
         if not salons:
             raise HTTPException(status_code=404, detail="No salons configured")
         first_slug = salons[0].slug
@@ -219,7 +220,7 @@ async def index(
     else:
         guest_cookie = request.cookies.get("guest_id")
 
-    salon = await orm_get_salon_by_slug(session, salon_slug)
+    salon = await repo.get_by_slug(salon_slug)
     if not salon:
         raise HTTPException(status_code=404, detail="Salon not found")
 
@@ -332,7 +333,8 @@ async def load_category(
     cat_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    salon = await orm_get_salon_by_slug(session, salon_slug)
+    repo = SalonRepository(session)
+    salon = await repo.get_by_slug(salon_slug)
     if not salon:
         raise HTTPException(status_code=404, detail="Salon not found")
 

@@ -108,8 +108,12 @@ async def test_full_order_flow(monkeypatch):
     async def fake_get_order_summary(session, user_salon_id, data):
         return "Summary"
 
-    async def fake_orm_get_salon_by_id(session, salon_id):
-        return SimpleNamespace(id=1, latitude=1.0, longitude=1.0, free_plan=False)
+    class FakeSalonRepository:
+        def __init__(self, session):
+            self.session = session
+
+        async def get_by_id(self, salon_id):
+            return SimpleNamespace(id=1, latitude=1.0, longitude=1.0, free_plan=False, order_limit=999)
 
     async def fake_orm_get_user_carts(session, user_salon_id):
         return [SimpleNamespace(id=1)]
@@ -141,7 +145,7 @@ async def test_full_order_flow(monkeypatch):
 
     monkeypatch.setattr(order_module, "orm_get_user", fake_orm_get_user)
     monkeypatch.setattr(order_module, "get_order_summary", fake_get_order_summary)
-    monkeypatch.setattr(order_module, "orm_get_salon_by_id", fake_orm_get_salon_by_id)
+    monkeypatch.setattr(order_module, "SalonRepository", FakeSalonRepository)
     monkeypatch.setattr(order_module, "orm_get_user_carts", fake_orm_get_user_carts)
     monkeypatch.setattr(order_module, "notify_salon_about_order", fake_notify)
     monkeypatch.setattr(order_module, "orm_clear_cart", fake_orm_clear_cart)
