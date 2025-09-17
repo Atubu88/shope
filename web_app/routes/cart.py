@@ -8,9 +8,9 @@ from database.models import Cart, UserSalon
 from database.orm_query import (
     orm_add_user,
     orm_get_product,
-    orm_get_salon_by_slug,
     orm_get_user_salon,
 )
+from database.repositories import SalonRepository
 
 from ..web_main import get_session, templates, verify_init_data
 
@@ -27,7 +27,8 @@ async def view_cart(
     if not user_salon_id:
         raise HTTPException(401, "User not identified")
 
-    salon = await orm_get_salon_by_slug(session, salon_slug)
+    repo = SalonRepository(session)
+    salon = await repo.get_by_slug(salon_slug)
     if not salon:
         raise HTTPException(status_code=404, detail="Salon not found")
 
@@ -74,7 +75,8 @@ async def add_to_cart(
     product_id: int,
     session: AsyncSession = Depends(get_session),
 ):
-    salon = await orm_get_salon_by_slug(session, salon_slug)
+    repo = SalonRepository(session)
+    salon = await repo.get_by_slug(salon_slug)
     if not salon:
         raise HTTPException(status_code=404, detail="Salon not found")
 
@@ -151,7 +153,8 @@ async def increase_cart_item(
     if not user_salon_id:
         raise HTTPException(401, "User not identified")
 
-    salon = await orm_get_salon_by_slug(session, salon_slug)
+    repo = SalonRepository(session)
+    salon = await repo.get_by_slug(salon_slug)
     if not salon:
         raise HTTPException(status_code=404, detail="Salon not found")
 
@@ -207,7 +210,8 @@ async def decrease_cart_item(
     if not user_salon_id:
         raise HTTPException(401, "User not identified")
 
-    salon = await orm_get_salon_by_slug(session, salon_slug)
+    repo = SalonRepository(session)
+    salon = await repo.get_by_slug(salon_slug)
     if not salon:
         raise HTTPException(status_code=404, detail="Salon not found")
 

@@ -1,7 +1,8 @@
 from typing import Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.orm_query import orm_get_user_carts, orm_get_salon_by_id
+from database.orm_query import orm_get_user_carts
+from database.repositories import SalonRepository
 from database.models import UserSalon
 from utils.currency import get_currency_symbol
 
@@ -15,7 +16,8 @@ async def get_order_summary(
     cart_items = await orm_get_user_carts(session, user_salon_id)
     user_salon = await session.get(UserSalon, user_salon_id)
     salon_id = user_salon.salon_id if user_salon else None
-    salon = await orm_get_salon_by_id(session, salon_id) if salon_id else None
+    repo = SalonRepository(session)
+    salon = await repo.get_by_id(salon_id) if salon_id else None
     currency = get_currency_symbol(salon.currency) if salon else "RUB"
 
     lines = []

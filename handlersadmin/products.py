@@ -13,10 +13,10 @@ from database.orm_query import (
     orm_get_categories,
     orm_get_products,
     orm_delete_product,
-    orm_get_salon_by_id,
     orm_get_product,
     orm_change_product_field,
 )
+from database.repositories import SalonRepository
 from utils.currency import get_currency_symbol
 from .menu import show_admin_menu
 
@@ -112,9 +112,10 @@ async def show_products(callback: CallbackQuery, state: FSMContext, session: Asy
 
     products = await orm_get_products(session, category_id, salon_id)
     product_msg_ids: list[int] = []
+    repo = SalonRepository(session)
 
     if products:
-        salon = await orm_get_salon_by_id(session, salon_id)
+        salon = await repo.get_by_id(salon_id) if salon_id else None
         currency = get_currency_symbol(salon.currency) if salon else "RUB"
         for product in products:
             caption = (

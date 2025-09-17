@@ -143,6 +143,13 @@ async def test_full_invite_creation_flow(monkeypatch):
         session.created = SimpleNamespace(id=1, name=name, slug=slug, timezone=timezone_name)
         return session.created
 
+    class FakeSalonRepository:
+        def __init__(self, session):
+            self.session = session
+
+        async def create(self, name, slug, currency, timezone_name):
+            return await fake_orm_create_salon(self.session, name, slug, currency, timezone_name)
+
     async def fake_init_default_salon_content(session, salon_id):
         session.init_called = salon_id
 
@@ -157,7 +164,7 @@ async def test_full_invite_creation_flow(monkeypatch):
         return Img()
 
     monkeypatch.setattr(invite_module, "generate_unique_slug", fake_generate_unique_slug)
-    monkeypatch.setattr(invite_module, "orm_create_salon", fake_orm_create_salon)
+    monkeypatch.setattr(invite_module, "SalonRepository", FakeSalonRepository)
     monkeypatch.setattr(invite_module, "init_default_salon_content", fake_init_default_salon_content)
     monkeypatch.setattr(invite_module, "orm_add_user", fake_orm_add_user)
     monkeypatch.setattr(invite_module, "qrcode", SimpleNamespace(make=fake_make))
