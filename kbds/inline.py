@@ -83,21 +83,36 @@ def get_user_catalog_btns(*, level: int, categories: list, sizes: tuple[int] = (
     return keyboard.adjust(*sizes).as_markup()
 
 
-def get_products_btns(
+def get_product_detail_btns(
         *,
         level: int,
         category: int,
         page: int,
         pagination_btns: dict,
         product_id: int,
-        sizes: tuple[int] = (2, 1)
+        list_page: int,
+        category_menu_name: str,
+        sizes: tuple[int, ...] = (2, 2)
 ):
+    """Кнопки для карточки товара с переходами и возвратом к списку."""
+
     keyboard = InlineKeyboardBuilder()
 
     keyboard.add(
         InlineKeyboardButton(
-            text=_('Назад'),
+            text=_('🔙 В категории'),
             callback_data=MenuCallBack(level=level - 1, menu_name='catalog').pack()
+        )
+    )
+    keyboard.add(
+        InlineKeyboardButton(
+            text=_('📋 Список товаров'),
+            callback_data=MenuCallBack(
+                level=level,
+                menu_name=category_menu_name,
+                category=category,
+                page=list_page,
+            ).pack()
         )
     )
     keyboard.add(
@@ -116,24 +131,112 @@ def get_products_btns(
     keyboard.adjust(*sizes)
 
     row = []
-    for text, menu_name in pagination_btns.items():
-        if menu_name == "next":
-            row.append(InlineKeyboardButton(text=text,
-                                            callback_data=MenuCallBack(
-                                                level=level,
-                                                menu_name=menu_name,
-                                                category=category,
-                                                page=page + 1).pack()))
+    for text, action in pagination_btns.items():
+        if action == "next":
+            row.append(
+                InlineKeyboardButton(
+                    text=text,
+                    callback_data=MenuCallBack(
+                        level=level,
+                        menu_name='product_detail',
+                        category=category,
+                        page=page + 1,
+                    ).pack(),
+                )
+            )
+        elif action == "previous":
+            row.append(
+                InlineKeyboardButton(
+                    text=text,
+                    callback_data=MenuCallBack(
+                        level=level,
+                        menu_name='product_detail',
+                        category=category,
+                        page=page - 1,
+                    ).pack(),
+                )
+            )
 
-        elif menu_name == "previous":
-            row.append(InlineKeyboardButton(text=text,
-                                            callback_data=MenuCallBack(
-                                                level=level,
-                                                menu_name=menu_name,
-                                                category=category,
-                                                page=page - 1).pack()))
+    if row:
+        keyboard.row(*row)
 
-    return keyboard.row(*row).as_markup()
+    return keyboard.as_markup()
+
+
+def get_product_list_btns(
+        *,
+        level: int,
+        category: int,
+        page: int,
+        pagination_btns: dict,
+        products: list,
+        category_menu_name: str,
+        start_index: int,
+):
+    """Формирует клавиатуру для списка товаров с пагинацией."""
+
+    keyboard = InlineKeyboardBuilder()
+
+    for offset, product in enumerate(products):
+        keyboard.add(
+            InlineKeyboardButton(
+                text=f"{product.name}",
+                callback_data=MenuCallBack(
+                    level=level,
+                    menu_name='product_detail',
+                    category=category,
+                    page=start_index + offset,
+                    product_id=product.id,
+                ).pack(),
+            )
+        )
+
+    keyboard.adjust(1)
+
+    row = []
+    for text, action in pagination_btns.items():
+        if action == "next":
+            row.append(
+                InlineKeyboardButton(
+                    text=text,
+                    callback_data=MenuCallBack(
+                        level=level,
+                        menu_name=category_menu_name,
+                        category=category,
+                        page=page + 1,
+                    ).pack(),
+                )
+            )
+        elif action == "previous":
+            row.append(
+                InlineKeyboardButton(
+                    text=text,
+                    callback_data=MenuCallBack(
+                        level=level,
+                        menu_name=category_menu_name,
+                        category=category,
+                        page=page - 1,
+                    ).pack(),
+                )
+            )
+
+    if row:
+        keyboard.row(*row)
+
+    keyboard.row(
+        InlineKeyboardButton(
+            text=_('🔙 В категории'),
+            callback_data=MenuCallBack(level=level - 1, menu_name='catalog').pack()
+        )
+    )
+    keyboard.row(
+        InlineKeyboardButton(
+            text=_('Корзина 🛒'),
+            callback_data=MenuCallBack(level=3, menu_name='cart').pack()
+        )
+    )
+
+    return keyboard.as_markup()
 
 
 def get_user_cart(

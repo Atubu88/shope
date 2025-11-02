@@ -293,8 +293,10 @@ async def show_product(message: Message, session: AsyncSession, state: FSMContex
         image, kbds = await products(
             session,
             level=2,
+            menu_name="product_detail",
             category=product.category_id,
             page=page,
+            product_id=product.id,
             salon_id=salon_id,
         )
 

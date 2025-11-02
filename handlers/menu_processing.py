@@ -1,5 +1,6 @@
 import os
-from typing import Tuple, Dict, Optional
+from math import ceil
+from typing import Dict, Optional, Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -10,6 +11,7 @@ from database.orm_query import (
     orm_add_to_cart,
     orm_delete_from_cart,
     orm_get_banner,
+    orm_get_category,
     orm_get_categories,
     orm_get_products,
     orm_get_user_carts,
@@ -17,7 +19,8 @@ from database.orm_query import (
 )
 from database.repositories import SalonRepository
 from kbds.inline import (
-    get_products_btns,
+    get_product_detail_btns,
+    get_product_list_btns,
     get_user_cart,
     get_user_catalog_btns,
     get_user_main_btns,
@@ -100,6 +103,9 @@ async def catalog(session: AsyncSession, level: int, menu_name: str, salon_id: i
     return image, kbds
 
 
+PRODUCTS_PER_PAGE = 5
+
+
 def pages(paginator: Paginator) -> Dict[str, str]:
     """
     Возвращает словарь {текст_кнопки: действие} для пагинации.
@@ -113,21 +119,118 @@ def pages(paginator: Paginator) -> Dict[str, str]:
     return btns
 
 
+def _number_to_emoji(number: int) -> str:
+    """Возвращает числовой индекс, оформленный эмодзи, для списка товаров."""
+
+    mapping = {
+        0: "0️⃣",
+        1: "1️⃣",
+        2: "2️⃣",
+        3: "3️⃣",
+        4: "4️⃣",
+        5: "5️⃣",
+        6: "6️⃣",
+        7: "7️⃣",
+        8: "8️⃣",
+        9: "9️⃣",
+        10: "🔟",
+    }
+    if number in mapping:
+        return mapping[number]
+    return f"{number}."
+
+
+def format_product_list(
+    *,
+    category_name: str,
+    products: Sequence,
+    currency: str,
+    start_index: int,
+) -> str:
+    """Формирует текст списка товаров для вывода в каталоге."""
+
+    if not products:
+        return _("Пока нет товаров для отображения.")
+
+    lines = [_("🛍 Категория: {category}").format(category=category_name), ""]
+    for offset, product in enumerate(products):
+        position = start_index + offset
+        price = round(product.price, 2)
+        lines.append(
+            _("{index} {name} — {price} {currency}").format(
+                index=_number_to_emoji(position),
+                name=product.name,
+                price=price,
+                currency=currency,
+            )
+        )
+
+    return "\n".join(lines)
+
+
 async def products(
     session: AsyncSession,
     level: int,
+    menu_name: str,
     category: int,
     page: int,
+    product_id: Optional[int],
     salon_id: int,
 ):
     repo = SalonRepository(session)
     try:
         items = await orm_get_products(session, category_id=category, salon_id=salon_id)
-        paginator = Paginator(items, page=page)
-        page_items = paginator.get_page()
+        category_obj = await orm_get_category(session, category, salon_id)
+        category_name = category_obj.name if category_obj else _("Категория")
+        salon = await repo.get_by_id(salon_id)
+        currency = get_currency_symbol(salon.currency) if salon else get_currency_symbol("RUB")
+
+        if menu_name == "product_detail" and items:
+            if product_id is not None:
+                for idx, item in enumerate(items, start=1):
+                    if item.id == product_id:
+                        page = idx
+                        break
+            total_items = len(items)
+            page = max(1, min(page, total_items))
+            detail_paginator = Paginator(items, page=page, per_page=1)
+            page_items = detail_paginator.get_page()
+            product = page_items[0]
+
+            list_page = ceil(page / PRODUCTS_PER_PAGE) if total_items else 1
+
+            image = get_image_banner(
+                product.image,
+                _("<strong>{name}</strong>\n{description}\nСтоимость: {price} {currency}\n").format(
+                    name=product.name,
+                    description=product.description or "",
+                    price=round(product.price, 2),
+                    currency=currency,
+                ),
+                _("<strong>Товар {page} из {pages}</strong>").format(
+                    page=detail_paginator.page,
+                    pages=detail_paginator.pages,
+                ),
+            )
+
+            pagination_btns = pages(detail_paginator)
+            kbds = get_product_detail_btns(
+                level=level,
+                category=category,
+                page=detail_paginator.page,
+                pagination_btns=pagination_btns,
+                product_id=product.id,
+                list_page=list_page,
+                category_menu_name=category_name,
+            )
+            return image, kbds
+
+        list_paginator = Paginator(items, page=page, per_page=PRODUCTS_PER_PAGE)
+        page = max(1, min(page, max(list_paginator.pages, 1)))
+        list_paginator.page = page
+        page_items = list_paginator.get_page()
 
         if not page_items:
-            # Нет товаров в категории — сообщаем и показываем каталог
             return (
                 get_image_banner(
                     None,
@@ -136,30 +239,32 @@ async def products(
                 get_user_catalog_btns(level=1, categories=await orm_get_categories(session, salon_id)),
             )
 
-        product = page_items[0]
-        salon = await repo.get_by_id(salon_id)
-        currency = get_currency_symbol(salon.currency) if salon else get_currency_symbol("RUB")
-
+        start_index = (list_paginator.page - 1) * list_paginator.per_page + 1
+        banner = await orm_get_banner(session, category_name, salon_id)
+        description = format_product_list(
+            category_name=category_name,
+            products=page_items,
+            currency=currency,
+            start_index=start_index,
+        )
         image = get_image_banner(
-            product.image,
-            _("<strong>{name}</strong>\n{description}\nСтоимость: {price}{currency}\n").format(
-                name=product.name,
-                description=product.description or "",
-                price=round(product.price, 2),
-                currency=currency,
-            ),
-            _("<strong>Товар {page} из {pages}</strong>").format(
-                page=paginator.page, pages=paginator.pages
+            banner.image if banner else None,
+            description,
+            _("Страница {page} из {pages}").format(
+                page=list_paginator.page,
+                pages=max(list_paginator.pages, 1),
             ),
         )
 
-        pagination_btns = pages(paginator)
-        kbds = get_products_btns(
+        pagination_btns = pages(list_paginator)
+        kbds = get_product_list_btns(
             level=level,
             category=category,
-            page=page,
+            page=list_paginator.page,
             pagination_btns=pagination_btns,
-            product_id=product.id,
+            products=page_items,
+            category_menu_name=category_name,
+            start_index=start_index,
         )
         return image, kbds
 
@@ -282,7 +387,15 @@ async def get_menu_content(
         case 2:
             if category is None or page is None:
                 raise ValueError("category and page are required for level 2 (products)")
-            return await products(session, level, category, page, salon_id)
+            return await products(
+                session,
+                level,
+                menu_name,
+                category,
+                page,
+                product_id,
+                salon_id,
+            )
         case 3:
             if page is None:
                 raise ValueError("page is required for level 3 (cart)")
