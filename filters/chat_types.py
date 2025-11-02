@@ -1,6 +1,11 @@
+"""Custom filters for chat types and admin permissions."""
+
 from aiogram import types
 from aiogram.filters import Filter
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from database.models import User
 from database.orm_query import orm_get_user
 
 
@@ -13,6 +18,8 @@ class ChatTypeFilter(Filter):
 
 
 class IsAdmin(Filter):
+    """Allow access for salon admins or super admins without salon binding."""
+
     async def __call__(self, obj: types.Update, session: AsyncSession) -> bool:
         # поддержка и Message, и CallbackQuery
         if isinstance(obj, types.CallbackQuery):
@@ -23,7 +30,13 @@ class IsAdmin(Filter):
             return False
 
         user = await orm_get_user(session, user_id)
-        return bool(user and (user.is_super_admin or user.is_salon_admin))
+        if user and (user.is_super_admin or user.is_salon_admin):
+            return True
+
+        is_super_admin = await session.scalar(
+            select(User.is_super_admin).where(User.user_id == user_id)
+        )
+        return bool(is_super_admin)
 
 
 class IsSuperAdmin(Filter):
