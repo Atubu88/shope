@@ -83,8 +83,11 @@ def phone_keyboard() -> ReplyKeyboardMarkup:
 async def start_order(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     await callback.message.delete()
     user_id = callback.from_user.id
-    user = await orm_get_user(session, user_id)
-    user_salon_id = user.id if user else None
+    data = await state.get_data()
+    user_salon_id = data.get("user_salon_id")
+    if not user_salon_id:
+        user = await orm_get_user(session, user_id)
+        user_salon_id = user.id if user else None
 
     state_data = {"delivery": None, "address": None, "delivery_cost": 0, "distance_km": None}
     summary = await get_order_summary(session, user_salon_id, state_data)
