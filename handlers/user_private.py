@@ -1,9 +1,9 @@
 from aiogram import F, types, Router
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import Message, InputMediaPhoto
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-
+import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -223,7 +223,6 @@ async def choose_salon(
     await callback.message.edit_text(_("Салон выбран"))
     await callback.message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
 
-
 @user_private_router.callback_query(MenuCallBack.filter())
 async def user_menu(
     callback: types.CallbackQuery,
@@ -231,30 +230,52 @@ async def user_menu(
     session: AsyncSession,
     state: FSMContext,
 ):
-    if callback_data.menu_name == "add_to_cart":
+    # 🧩 Приводим типы
+    level = int(callback_data.level) if callback_data.level is not None else None
+    menu_name = str(callback_data.menu_name or "")
+
+    # 🛒 Добавление в корзину
+    if menu_name == "add_to_cart":
         await add_to_cart(callback, callback_data, session, state)
         return
 
+    # 🔐 Проверяем user_salon_id
     data = await state.get_data()
     user_salon_id = data.get("user_salon_id")
-
     if not user_salon_id:
         await callback.answer(_("Салон не выбран. Перезапустите бота командой /start."))
         return
 
+    # 📦 Получаем контент
     media, reply_markup = await get_menu_content(
         session,
-        level=callback_data.level,
-        menu_name=callback_data.menu_name,
+        level=level,
+        menu_name=menu_name,
         category=callback_data.category,
         page=callback_data.page,
         product_id=callback_data.product_id,
         user_salon_id=user_salon_id,
     )
 
-    await callback.message.edit_media(media=media, reply_markup=reply_markup)
-    await callback.answer()
+    # 🖼️ Если пришёл объект InputMediaPhoto (карточка или список товаров) → редактируем медиа
+    if isinstance(media, InputMediaPhoto):
+        try:
+            await callback.message.edit_media(media=media, reply_markup=reply_markup)
+        except Exception as e:
+            print(f"[edit_media error]: {e}")
+        await callback.answer()
+        return
 
+    # 📝 Иначе (просто текст или подпись) → редактируем подпись/текст
+    try:
+        await callback.message.edit_caption(caption=media, reply_markup=reply_markup)
+    except Exception:
+        try:
+            await callback.message.edit_text(text=media, reply_markup=reply_markup)
+        except Exception as e:
+            print(f"[edit_text error]: {e}")
+
+    await callback.answer()
 
 @user_private_router.message(F.text.startswith("/product_"))
 async def show_product(message: Message, session: AsyncSession, state: FSMContext):

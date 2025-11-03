@@ -36,27 +36,26 @@ def get_image_banner(
     image: Optional[str],
     description: str,
     extra_description: Optional[str] = None,
-) -> InputMediaPhoto:
+) -> InputMediaPhoto | str:
     """
-    Готовит InputMediaPhoto из разных источников картинки (file_id, URL, локальный путь).
-    Если путь не существует — берём дефолтную картинку. К описанию можно добавить extra_description.
+    Возвращает InputMediaPhoto, если есть фото, иначе просто текст (caption).
+    Это убирает дефолтную заглушку "NO PHOTO".
     """
     caption = description.rstrip()
     if extra_description:
         caption = f"{caption}\n{extra_description}"
 
+    # Если есть фото — показываем
     if image and image.startswith("AgACAg"):
-        # Telegram file_id
         return InputMediaPhoto(media=image, caption=caption)
     elif image and (image.startswith("http://") or image.startswith("https://")):
-        # Внешний URL
         return InputMediaPhoto(media=image, caption=caption)
     elif image and os.path.exists(image):
-        # Локальный файл
         return InputMediaPhoto(media=FSInputFile(image), caption=caption)
-    else:
-        # Фолбэк на дефолтный баннер
-        return InputMediaPhoto(media=FSInputFile("banners/default.jpg"), caption=caption)
+
+    # 🚫 Фото нет — просто возвращаем текст без картинки
+    return caption
+
 
 
 def resolve_banner_description(banner, page: str) -> str:
@@ -241,20 +240,23 @@ async def products(
 
         start_index = (list_paginator.page - 1) * list_paginator.per_page + 1
         banner = await orm_get_banner(session, category_name, salon_id)
-        description = format_product_list(
-            category_name=category_name,
-            products=page_items,
-            currency=currency,
-            start_index=start_index,
-        )
-        image = get_image_banner(
-            banner.image if banner else None,
-            description,
-            _("Страница {page} из {pages}").format(
-                page=list_paginator.page,
-                pages=max(list_paginator.pages, 1),
-            ),
-        )
+        # Только заголовок категории без списка товаров
+        # 🚫 Всегда без фото
+        # Только заголовок категории без списка товаров и без фото
+        # 🖼 Для списка товаров используем узкий баннер "Список товаров"
+        if menu_name != "product_detail":
+            caption = format_product_list(
+                category_name=category_name,
+                products=page_items,
+                currency=currency,
+                start_index=start_index,
+            )
+
+            # 🖼 Узкий баннер "Список товаров" + подпись с названием категории
+            image = InputMediaPhoto(
+                media=FSInputFile("banners/product_list.png"),
+                caption=f"Категория: {category_name}",  # ✅ теперь подпись информативная
+            )
 
         pagination_btns = pages(list_paginator)
         kbds = get_product_list_btns(
