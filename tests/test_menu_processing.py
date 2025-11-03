@@ -29,7 +29,7 @@ def test_format_product_list_creates_expected_text() -> None:
         start_index=1,
     )
 
-    assert "🏷️ **Категория:** Товары для ухода" in text
+    assert "<b>🏷️ Категория:</b> Товары для ухода" in text
     assert "1️⃣ Шампунь «Мята» — 250 ₽" in text
     assert "2️⃣ Маска для волос — 390 ₽" in text
     assert "3️⃣ Кондиционер — 300 ₽" in text
@@ -45,5 +45,5 @@ def test_format_product_list_caption_contains_page_info() -> None:
         total_pages=2,
     )
 
-    assert "🏷️ **Категория:** Уход" in caption
-    assert "📋 **Список товаров:** 1 из 2" in caption
+    assert "<b>🏷️ Категория:</b> Уход" in caption
+    assert "<b>📋 Список товаров:</b> 1 из 2" in caption

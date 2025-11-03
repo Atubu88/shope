@@ -153,7 +153,7 @@ def format_product_list(
         return _("Пока нет товаров для отображения.")
 
     lines = [
-        _("🏷️ **Категория:** {category}").format(category=category_name),
+        _("<b>🏷️ Категория:</b> {category}").format(category=category_name),
         "",
     ]
     for offset, product in enumerate(products):
@@ -179,8 +179,8 @@ def format_product_list_caption(
 ) -> str:
     """Возвращает подпись для списка товаров с категорией и номером страницы."""
 
-    header = _("🏷️ **Категория:** {category}").format(category=category_name)
-    pages_info = _("📋 **Список товаров:** {current} из {total}").format(
+    header = _("<b>🏷️ Категория:</b> {category}").format(category=category_name)
+    pages_info = _("<b>📋 Список товаров:</b> {current} из {total}").format(
         current=current_page,
         total=total_pages,
     )
