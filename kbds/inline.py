@@ -1,3 +1,5 @@
+from typing import Sequence
+
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -88,7 +90,7 @@ def get_product_detail_btns(
         level: int,
         category: int,
         page: int,
-        pagination_btns: dict,
+        pagination_btns: Sequence[tuple[str, str]],
         product_id: int,
         list_page: int,
         category_menu_name: str,
@@ -131,7 +133,7 @@ def get_product_detail_btns(
     keyboard.adjust(*sizes)
 
     row = []
-    for text, action in pagination_btns.items():
+    for text, action in pagination_btns:
         if action == "next":
             row.append(
                 InlineKeyboardButton(
@@ -168,7 +170,7 @@ def get_product_list_btns(
         level: int,
         category: int,
         page: int,
-        pagination_btns: dict,
+        pagination_btns: Sequence[tuple[str, str]],
         products: list,
         category_menu_name: str,
         start_index: int,
@@ -199,15 +201,8 @@ def get_product_list_btns(
             callback_data=MenuCallBack(level=level - 1, menu_name='catalog').pack()
         )
     )
-    keyboard.row(
-        InlineKeyboardButton(
-            text=_('Корзина 🛒'),
-            callback_data=MenuCallBack(level=3, menu_name='cart').pack()
-        )
-    )
-
     pagination_row: list[InlineKeyboardButton] = []
-    for text, action in pagination_btns.items():
+    for text, action in pagination_btns:
         if action == "next":
             pagination_row.append(
                 InlineKeyboardButton(
@@ -243,7 +238,7 @@ def get_user_cart(
         *,
         level: int,
         page: int | None,
-        pagination_btns: dict | None,
+        pagination_btns: Sequence[tuple[str, str]] | None,
         product_id: int | None,
         sizes: tuple[int] = (3,)
 ):
@@ -274,8 +269,8 @@ def get_user_cart(
 
         keyboard.adjust(*sizes)
 
-        row = []
-        for text, menu_name in pagination_btns.items():
+        row: list[InlineKeyboardButton] = []
+        for text, menu_name in (pagination_btns or []):
             if menu_name == "next":
                 row.append(InlineKeyboardButton(text=text,
                                                 callback_data=MenuCallBack(level=level, menu_name=menu_name,

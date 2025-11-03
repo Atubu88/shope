@@ -1,6 +1,6 @@
 import os
 from math import ceil
-from typing import Dict, Optional, Sequence
+from typing import Optional, Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -105,16 +105,16 @@ async def catalog(session: AsyncSession, level: int, menu_name: str, salon_id: i
 PRODUCTS_PER_PAGE = 5
 
 
-def pages(paginator: Paginator) -> Dict[str, str]:
+def pages(paginator: Paginator) -> list[tuple[str, str]]:
     """
-    Возвращает словарь {текст_кнопки: действие} для пагинации.
+    Возвращает список пар (текст, действие) для пагинации.
     Тексты локализованы.
     """
-    btns: Dict[str, str] = {}
+    btns: list[tuple[str, str]] = []
     if paginator.has_previous():
-        btns[_("◀ Пред.")] = "previous"
+        btns.append((_("◀ Пред."), "previous"))
     if paginator.has_next():
-        btns[_("След. ▶")] = "next"
+        btns.append((_("След. ▶"), "next"))
     return btns
 
 
