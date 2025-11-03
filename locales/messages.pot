@@ -156,6 +156,16 @@ msgid ""
 "категорию."
 msgstr ""
 
+#: handlers/menu_processing.py:152
+#, python-brace-format
+msgid "Категория: {category}"
+msgstr ""
+
+#: handlers/menu_processing.py:154
+#, python-brace-format
+msgid "Список товаров: {current} из {total}"
+msgstr ""
+
 #: handlers/menu_processing.py:144
 #, python-brace-format
 msgid ""

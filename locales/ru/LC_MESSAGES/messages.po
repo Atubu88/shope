@@ -165,6 +165,16 @@ msgstr ""
 "В этой категории пока нет товаров. Попробуйте позже или выберите другую "
 "категорию."
 
+#: handlers/menu_processing.py:152
+#, python-brace-format
+msgid "Категория: {category}"
+msgstr "Категория: {category}"
+
+#: handlers/menu_processing.py:154
+#, python-brace-format
+msgid "Список товаров: {current} из {total}"
+msgstr "Список товаров: {current} из {total}"
+
 #: handlers/menu_processing.py:144
 #, python-brace-format
 msgid ""

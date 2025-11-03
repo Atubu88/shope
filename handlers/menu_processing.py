@@ -168,6 +168,22 @@ def format_product_list(
     return "\n".join(lines)
 
 
+def format_product_list_caption(
+    *,
+    category_name: str,
+    current_page: int,
+    total_pages: int,
+) -> str:
+    """Возвращает подпись для списка товаров с категорией и номером страницы."""
+
+    header = _("Категория: {category}").format(category=category_name)
+    pages_info = _("Список товаров: {current} из {total}").format(
+        current=current_page,
+        total=total_pages,
+    )
+    return "\n".join((header, pages_info))
+
+
 async def products(
     session: AsyncSession,
     level: int,
@@ -256,7 +272,11 @@ async def products(
             # 🖼 Узкий баннер "Список товаров" + подпись с названием категории
             image = InputMediaPhoto(
                 media=FSInputFile("banners/product_list.png"),
-                caption=f"Категория: {category_name}",  # ✅ теперь подпись информативная
+                caption=format_product_list_caption(
+                    category_name=category_name,
+                    current_page=list_paginator.page,
+                    total_pages=max(list_paginator.pages, 1),
+                ),
             )
 
         pagination_btns = pages(list_paginator)
