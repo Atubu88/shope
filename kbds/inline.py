@@ -125,7 +125,7 @@ def get_product_detail_btns(
     )
     keyboard.add(
         InlineKeyboardButton(
-            text=_('Купить 💵'),
+            text=_('Добавить в 🛒'),
             callback_data=MenuCallBack(level=level, menu_name='add_to_cart', product_id=product_id).pack()
         )
     )

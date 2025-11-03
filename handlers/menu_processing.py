@@ -102,7 +102,8 @@ async def catalog(session: AsyncSession, level: int, menu_name: str, salon_id: i
     return image, kbds
 
 
-PRODUCTS_PER_PAGE = 5
+PRODUCTS_PER_PAGE = 3
+
 
 
 def pages(paginator: Paginator) -> list[tuple[str, str]]:
@@ -265,7 +266,7 @@ async def products(
             page=list_paginator.page,
             pagination_btns=pagination_btns,
             products=page_items,
-            category_menu_name=category_name,
+            category_menu_name="product_list",
             start_index=start_index,
         )
         return image, kbds
