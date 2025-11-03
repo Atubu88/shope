@@ -193,36 +193,6 @@ def get_product_list_btns(
 
     keyboard.adjust(1)
 
-    row = []
-    for text, action in pagination_btns.items():
-        if action == "next":
-            row.append(
-                InlineKeyboardButton(
-                    text=text,
-                    callback_data=MenuCallBack(
-                        level=level,
-                        menu_name=category_menu_name,
-                        category=category,
-                        page=page + 1,
-                    ).pack(),
-                )
-            )
-        elif action == "previous":
-            row.append(
-                InlineKeyboardButton(
-                    text=text,
-                    callback_data=MenuCallBack(
-                        level=level,
-                        menu_name=category_menu_name,
-                        category=category,
-                        page=page - 1,
-                    ).pack(),
-                )
-            )
-
-    if row:
-        keyboard.row(*row)
-
     keyboard.row(
         InlineKeyboardButton(
             text=_('🔙 В категории'),
@@ -235,6 +205,36 @@ def get_product_list_btns(
             callback_data=MenuCallBack(level=3, menu_name='cart').pack()
         )
     )
+
+    pagination_row: list[InlineKeyboardButton] = []
+    for text, action in pagination_btns.items():
+        if action == "next":
+            pagination_row.append(
+                InlineKeyboardButton(
+                    text=text,
+                    callback_data=MenuCallBack(
+                        level=level,
+                        menu_name=category_menu_name,
+                        category=category,
+                        page=page + 1,
+                    ).pack(),
+                )
+            )
+        elif action == "previous":
+            pagination_row.append(
+                InlineKeyboardButton(
+                    text=text,
+                    callback_data=MenuCallBack(
+                        level=level,
+                        menu_name=category_menu_name,
+                        category=category,
+                        page=page - 1,
+                    ).pack(),
+                )
+            )
+
+    if pagination_row:
+        keyboard.row(*pagination_row)
 
     return keyboard.as_markup()
 
