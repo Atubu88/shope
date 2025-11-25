@@ -31,6 +31,33 @@ user_private_router = Router()
 user_private_router.message.filter(ChatTypeFilter(["private"]))
 
 
+def extract_start_param(text: str | None) -> str | None:
+    """Извлекает payload из команды ``/start``.
+
+    Поддерживает оба формата Telegram:
+
+    * ``/start payload`` (классический вариант по пробелу)
+    * ``/start=payload`` (payload слитно через знак ``=``)
+    """
+
+    if not text:
+        return None
+
+    stripped = text.strip()
+    if not stripped.startswith("/start"):
+        return None
+
+    command_part, _space, payload = stripped.partition(" ")
+    if payload:
+        return payload.strip() or None
+
+    if "=" in command_part:
+        _prefix, _eq, inline_payload = command_part.partition("=")
+        return inline_payload or None
+
+    return None
+
+
 @user_private_router.message(Command("language"))
 async def cmd_language(message: types.Message, session: AsyncSession):
     """
@@ -71,9 +98,7 @@ async def set_language(callback: types.CallbackQuery, session: AsyncSession, sta
 @user_private_router.message(CommandStart(), ~InviteFilter())
 async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSession):
     await state.clear()
-
-    args = message.text.split()
-    param = args[1] if len(args) > 1 else None
+    param = extract_start_param(message.text)
     user_id = message.from_user.id
 
     repo = SalonRepository(session)
