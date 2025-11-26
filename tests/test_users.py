@@ -1,6 +1,4 @@
-"""
-Пользователь и MRU-салон: идемпотентность флагов и порядок updated.
-"""
+"""Пользователь и MRU-салон: идемпотентность флагов и порядок updated."""
 
 import pytest
 import asyncio
@@ -94,3 +92,30 @@ async def test_mru_salon_ordering(session):
 
     last_slug = await orm_get_last_salon_slug(session, u.user_id)
     assert last_slug == f"sb_{timestamp}"
+
+
+@pytest.mark.asyncio
+async def test_mru_updates_on_reselect(session):
+    import time
+
+    timestamp = int(time.time() * 1000)
+
+    user = User(user_id=2000 + timestamp, is_super_admin=False, language="ru")
+    session.add(user)
+    await session.flush()
+
+    s1 = Salon(name=f"S-C_{timestamp}", slug=f"sc_{timestamp}", currency="USD", timezone="UTC")
+    s2 = Salon(name=f"S-D_{timestamp}", slug=f"sd_{timestamp}", currency="USD", timezone="UTC")
+    session.add_all([s1, s2])
+    await session.flush()
+
+    await orm_add_user(session, user.user_id, s1.id, first_name="A", last_name="B")
+    await asyncio.sleep(1)
+
+    await orm_add_user(session, user.user_id, s2.id, first_name="C", last_name="D")
+    await asyncio.sleep(1)
+
+    await orm_add_user(session, user.user_id, s1.id)
+
+    mru = await orm_get_mru_salon(session, user.user_id)
+    assert mru and mru.id == s1.id

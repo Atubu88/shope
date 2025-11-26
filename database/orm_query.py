@@ -270,6 +270,9 @@ async def orm_add_user(
         if is_salon_admin:
             user_salon.is_salon_admin = True
 
+    # Обновляем отметку «последний использованный салон» даже при повторном выборе
+    user_salon.updated = func.now()
+
     await session.commit()
 
     # 👉 Повторно получаем user_salon с подгруженным user
