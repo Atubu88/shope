@@ -98,7 +98,11 @@ async def set_language(callback: types.CallbackQuery, session: AsyncSession, sta
 @user_private_router.message(CommandStart(), ~InviteFilter())
 async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSession):
     await state.clear()
+    # 🔥 ЛОГ №1 — сырое сообщение Telegram
+    print("🚀 RAW START MESSAGE:", message.text)
     param = extract_start_param(message.text)
+    # 🔥 ЛОГ №2 — извлечённый параметр
+    print("🔍 EXTRACTED PARAM:", param)
     user_id = message.from_user.id
 
     repo = SalonRepository(session)
