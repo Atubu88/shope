@@ -20,6 +20,7 @@ from database.orm_query import (
 )
 from database.repositories import SalonRepository
 from utils.currency import get_currency_symbol
+from utils.product_media import select_product_photo
 
 inline_router = Router()
 
@@ -104,10 +105,13 @@ async def answer_products_inline(inline_query: InlineQuery, session: AsyncSessio
 
     results = []
     for prod in products[:50]:
-        thumb_url = (
-            prod.image if str(prod.image).startswith(("http://", "https://"))
-            else await _thumb(inline_query.bot, prod.image)
-        )
+        preferred_photo = select_product_photo(prod.image_file_id, prod.image)
+        if preferred_photo and str(preferred_photo).startswith(("http://", "https://")):
+            thumb_url = preferred_photo
+        elif preferred_photo:
+            thumb_url = await _thumb(inline_query.bot, preferred_photo)
+        else:
+            thumb_url = None
         results.append(
             InlineQueryResultArticle(
                 id=str(prod.id),

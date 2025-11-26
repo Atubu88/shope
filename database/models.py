@@ -77,6 +77,7 @@ class Product(Base):
     description: Mapped[str] = mapped_column(Text)
     price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     image: Mapped[str] = mapped_column(String(150))
+    image_file_id: Mapped[str | None] = mapped_column(String(150), nullable=True)
     category_id: Mapped[int] = mapped_column(ForeignKey('category.id', ondelete='CASCADE'), nullable=False)
     salon_id: Mapped[int] = mapped_column(ForeignKey('salon.id'), nullable=False)
 

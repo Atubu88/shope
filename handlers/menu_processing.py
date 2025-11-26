@@ -30,6 +30,7 @@ from utils.currency import get_currency_symbol
 from database.models import UserSalon, User
 from utils.i18n import _, i18n  # ✅ gettext + i18n
 from common.texts_for_db import get_default_banner_description
+from utils.product_media import select_product_photo
 
 
 def get_image_banner(
@@ -219,7 +220,7 @@ async def products(
             list_page = ceil(page / PRODUCTS_PER_PAGE) if total_items else 1
 
             image = get_image_banner(
-                product.image,
+                select_product_photo(product.image_file_id, product.image),
                 _("<strong>{name}</strong>\n{description}\nСтоимость: {price} {currency}\n").format(
                     name=product.name,
                     description=product.description or "",
@@ -353,7 +354,7 @@ async def carts(
     total_price = round(sum(c.quantity * c.product.price for c in carts_list), 2)
 
     image = get_image_banner(
-        cart.product.image,
+        select_product_photo(cart.product.image_file_id, cart.product.image),
         _("<strong>{name}</strong>\n{price}{currency} x {qty} = {sum}{currency}\n").format(
             name=cart.product.name,
             price=round(cart.product.price, 2),

@@ -131,6 +131,7 @@ async def orm_add_product(session: AsyncSession, data: dict, salon_id: int):
         description=data["description"],
         price=float(data["price"]),
         image=data["image"],
+        image_file_id=data.get("image_file_id"),
         category_id=int(data["category"]),
         salon_id=salon_id,
     )
@@ -163,17 +164,20 @@ async def orm_update_product(session: AsyncSession, product_id: int, data, salon
             description=data["description"],
             price=float(data["price"]),
             image=data["image"],
+            image_file_id=data.get("image_file_id"),
             category_id=int(data["category"]),
         )
     )
     await session.execute(query)
     await session.commit()
 
-async def orm_change_product_image(session: AsyncSession, product_id: int, image: str, salon_id: int):
+async def orm_change_product_image(
+    session: AsyncSession, product_id: int, image: str, salon_id: int, image_file_id: str | None = None
+):
     query = (
         update(Product)
         .where(Product.id == product_id, Product.salon_id == salon_id)
-        .values(image=image)
+        .values(image=image, image_file_id=image_file_id)
     )
     await session.execute(query)
     await session.commit()

@@ -18,6 +18,7 @@ from database.orm_query import (
 )
 from database.repositories import SalonRepository
 from utils.currency import get_currency_symbol
+from utils.product_media import select_product_photo
 from .menu import show_admin_menu
 
 products_router = Router()
@@ -123,13 +124,21 @@ async def show_products(callback: CallbackQuery, state: FSMContext, session: Asy
                 f"{product.description}\n"
                 f"Цена: <b>{product.price:.2f}{currency}</b>"
             )
-            msg = await callback.bot.send_photo(
-                callback.message.chat.id,
-                product.image,
-                caption=caption,
-                reply_markup=product_action_kb(product.id),
-                parse_mode="HTML",
-            )
+            photo_source = select_product_photo(product.image_file_id, product.image)
+            if photo_source:
+                msg = await callback.bot.send_photo(
+                    callback.message.chat.id,
+                    photo_source,
+                    caption=caption,
+                    reply_markup=product_action_kb(product.id),
+                    parse_mode="HTML",
+                )
+            else:
+                msg = await callback.message.answer(
+                    caption,
+                    reply_markup=product_action_kb(product.id),
+                    parse_mode="HTML",
+                )
             product_msg_ids.append(msg.message_id)
     else:
         msg_empty = await callback.message.answer("В этой категории пока нет товаров.")
