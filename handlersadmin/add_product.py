@@ -140,7 +140,7 @@ async def invalid_price(message: Message) -> None:
 async def process_photo(message: Message, state: FSMContext, session: AsyncSession) -> None:
     photo_id = message.photo[-1].file_id
     photo_url = await upload_photo_from_telegram(message.bot, photo_id)
-    await state.update_data(image=photo_url)
+    await state.update_data(image_file_id=photo_id, image=photo_url)
     data = await state.get_data()
     salon_id = data.get("salon_id")  # <-- снова достаем актуальный salon_id
     repo = SalonRepository(session)
