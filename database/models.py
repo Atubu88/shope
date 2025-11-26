@@ -75,6 +75,7 @@ class Product(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     description: Mapped[str] = mapped_column(Text)
+    details_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     image: Mapped[str] = mapped_column(String(150))
     image_file_id: Mapped[str | None] = mapped_column(String(150), nullable=True)
