@@ -19,6 +19,7 @@ from database.orm_query import (
 from database.repositories import SalonRepository
 from utils.currency import get_currency_symbol
 from utils.product_media import select_product_photo
+from utils.product_description import prepare_description_with_details
 from .menu import show_admin_menu
 
 products_router = Router()
@@ -250,11 +251,15 @@ async def save_new_description(message: Message, state: FSMContext, session: Asy
         await message.answer("Описание не может быть пустым. Введите новое описание или /cancel")
         return
     data = await state.get_data()
+    product = await orm_get_product(session, data["edit_product_id"], data["salon_id"])
+    product_name = product.name if product else "Товар"
+    prepared_description, details_url = await prepare_description_with_details(product_name, text)
     await orm_change_product_field(
         session,
         data["edit_product_id"],
         data["salon_id"],
-        description=text,
+        description=prepared_description,
+        details_url=details_url,
     )
     await state.clear()
     await message.answer("Описание товара обновлено ✅")

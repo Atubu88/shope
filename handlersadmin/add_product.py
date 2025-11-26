@@ -13,6 +13,7 @@ from utils.supabase_storage import upload_photo_from_telegram
 from database.orm_query import orm_add_product, orm_get_categories
 from database.repositories import SalonRepository
 from utils.currency import get_currency_symbol
+from utils.product_description import prepare_description_with_details
 from .menu import show_admin_menu
 
 add_product_router = Router()
@@ -142,6 +143,13 @@ async def process_photo(message: Message, state: FSMContext, session: AsyncSessi
     photo_url = await upload_photo_from_telegram(message.bot, photo_id)
     await state.update_data(image_file_id=photo_id, image=photo_url)
     data = await state.get_data()
+
+    prepared_description, details_url = await prepare_description_with_details(
+        data["name"],
+        data["description"],
+    )
+    await state.update_data(description=prepared_description, details_url=details_url)
+    data = await state.get_data()
     salon_id = data.get("salon_id")  # <-- снова достаем актуальный salon_id
     repo = SalonRepository(session)
     salon = await repo.get_by_id(salon_id) if salon_id else None
@@ -155,7 +163,11 @@ async def process_photo(message: Message, state: FSMContext, session: AsyncSessi
     await message.bot.edit_message_media(
         chat_id=message.chat.id,
         message_id=data["main_message_id"],
-        media=InputMediaPhoto(media=photo_id, caption=caption + "\n\nТовар добавлен."),
+        media=InputMediaPhoto(
+            media=photo_id,
+            caption=caption + "\n\nТовар добавлен.",
+            parse_mode="HTML",
+        ),
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="В меню", callback_data="admin_menu")]]
         ),
