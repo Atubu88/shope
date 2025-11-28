@@ -58,6 +58,20 @@ def extract_start_param(text: str | None) -> str | None:
     return None
 
 
+def build_slug_candidates(param: str) -> list[str]:
+    """Возвращает список уникальных вариантов slug с ``-`` и ``_``.
+
+    Поддерживает ввод как с дефисами, так и с подчёркиваниями, сохраняя порядок
+    без усечения slug.
+    """
+
+    candidates: list[str] = []
+    for candidate in (param, param.replace("_", "-"), param.replace("-", "_")):
+        if candidate and candidate not in candidates:
+            candidates.append(candidate)
+    return candidates
+
+
 @user_private_router.message(Command("language"))
 async def cmd_language(message: types.Message, session: AsyncSession):
     """
@@ -142,13 +156,14 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
     # пробуем определить салон по параметру /start
     salon = None
     if param:
-        if "-" in param:
-            slug, _suffix = param.rsplit("-", 1)
-            salon = await repo.get_by_slug(slug)
-        elif param.isdigit():
+        if param.isdigit():
             salon = await repo.get_by_id(int(param))
-        else:
-            salon = await repo.get_by_slug(param)
+
+        if not salon:
+            for slug in build_slug_candidates(param):
+                salon = await repo.get_by_slug(slug)
+                if salon:
+                    break
 
     # если салон определён — привяжем пользователя и зайдём в меню
     if salon:

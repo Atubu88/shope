@@ -1,6 +1,6 @@
 """Тесты для пользовательских хендлеров."""
 
-from handlers.user_private import extract_start_param
+from handlers.user_private import build_slug_candidates, extract_start_param
 
 
 def test_extract_start_param_with_space_payload():
@@ -20,3 +20,15 @@ def test_extract_start_param_unknown_format():
 
     assert extract_start_param("/help") is None
     assert extract_start_param("just text") is None
+
+
+def test_build_slug_candidates_preserves_hyphens():
+    """Slug с дефисами не должен усекаться и конвертируется в формат с ``_``."""
+
+    assert build_slug_candidates("smak-krymu-od") == ["smak-krymu-od", "smak_krymu_od"]
+
+
+def test_build_slug_candidates_handles_underscores():
+    """Подчёркивания конвертируются в дефисы, чтобы находить существующие салоны."""
+
+    assert build_slug_candidates("smak_krymu_od") == ["smak_krymu_od", "smak-krymu-od"]
