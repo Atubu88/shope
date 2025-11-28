@@ -52,6 +52,7 @@ async def choose_page(callback: CallbackQuery, state: FSMContext) -> None:
         chat_id=callback.message.chat.id,
         message_id=data["main_message_id"],
         text="Введите описание баннера:",
+        parse_mode="HTML"
     )
     await callback.answer()
 
