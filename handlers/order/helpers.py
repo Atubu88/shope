@@ -175,10 +175,10 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext, session: Asy
         payment_method = data.get("payment_method")
 
         if not payment_method:
-            if delivery_type in {"samovyvoz", "pickup"}:
-                payment_method = "pickup"
+            if delivery_type == "delivery_pickup":
+                payment_method = "pickup"  # самовывоз = оплата в салоне
             elif delivery_type == "delivery_courier":
-                payment_method = "cash"
+                payment_method = "cash"  # курьер = наличные
 
         email = data.get("email") or ""
         comment = data.get("comment") or ""
