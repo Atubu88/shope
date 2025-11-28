@@ -1,20 +1,24 @@
+import importlib
 import sys
-from types import SimpleNamespace
 from pathlib import Path
+from types import SimpleNamespace
+
 import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from handlers.order_processing import (
-    start_order,
-    choose_delivery_courier,
-    receive_location,
-    confirm_address_kb,
-    enter_phone,
-    confirm_order,
+from handlers.order import (
     OrderStates,
+    choose_delivery_courier,
+    confirm_address_kb,
+    confirm_order,
+    enter_phone,
+    receive_location,
+    start_order,
 )
-import handlers.order_processing as order_module
+courier_module = importlib.import_module("handlers.order.courier_flow")
+helpers_module = importlib.import_module("handlers.order.helpers")
+start_module = importlib.import_module("handlers.order.start_order")
 
 
 class FSM:
@@ -41,7 +45,7 @@ class Session:
         self.order_params = None
 
     async def get(self, model, obj_id):
-        return SimpleNamespace(salon_id=1)
+        return SimpleNamespace(salon_id=1, first_name="", last_name="")
 
 
 class Bot:
@@ -66,7 +70,7 @@ class Msg:
     def __init__(self, bot, text="", user_id=1, location=None, contact=None):
         self.bot = bot
         self.text = text
-        self.from_user = SimpleNamespace(id=user_id)
+        self.from_user = SimpleNamespace(id=user_id, full_name="User")
         self.chat = SimpleNamespace(id=user_id)
         self.location = location
         self.contact = contact
@@ -92,7 +96,7 @@ class Cb:
     def __init__(self, data, message, user_id=1):
         self.data = data
         self.message = message
-        self.from_user = SimpleNamespace(id=user_id)
+        self.from_user = SimpleNamespace(id=user_id, full_name="User")
         self.bot = message.bot
         self._answered = []
 
@@ -124,15 +128,14 @@ async def test_full_order_flow(monkeypatch):
     async def fake_orm_clear_cart(session, user_salon_id):
         session.cleared = True
 
-    async def fake_orm_create_order(session, user_salon_id, address, phone, payment_method, cart_items):
-        session.order_params = {
-            "user_salon_id": user_salon_id,
-            "address": address,
-            "phone": phone,
-            "payment_method": payment_method,
-            "cart_items": cart_items,
-        }
+    async def fake_orm_create_order(*args, **kwargs):
+        session_arg = args[0] if args else kwargs.get("session")
+        if session_arg:
+            session_arg.order_params = {**kwargs, "session": session_arg}
         return SimpleNamespace(id=1)
+
+    async def fake_orm_get_orders_count(session, salon_id):
+        return 0
 
     def fake_haversine(*args, **kwargs):
         return 1.0
@@ -143,17 +146,26 @@ async def test_full_order_flow(monkeypatch):
     def fake_get_address_from_coords(lat, lon):
         return "Address"
 
-    monkeypatch.setattr(order_module, "orm_get_user", fake_orm_get_user)
-    monkeypatch.setattr(order_module, "get_order_summary", fake_get_order_summary)
-    monkeypatch.setattr(order_module, "SalonRepository", FakeSalonRepository)
-    monkeypatch.setattr(order_module, "orm_get_user_carts", fake_orm_get_user_carts)
-    monkeypatch.setattr(order_module, "notify_salon_about_order", fake_notify)
-    monkeypatch.setattr(order_module, "orm_clear_cart", fake_orm_clear_cart)
-    monkeypatch.setattr(order_module, "orm_create_order", fake_orm_create_order)
-    monkeypatch.setattr(order_module, "haversine", fake_haversine)
-    monkeypatch.setattr(order_module, "calc_delivery_cost", fake_calc_delivery_cost)
-    monkeypatch.setattr(order_module, "get_address_from_coords", fake_get_address_from_coords)
-    monkeypatch.setattr(order_module, "_", lambda s: s)
+    monkeypatch.setattr(start_module, "orm_get_user", fake_orm_get_user)
+    monkeypatch.setattr(start_module, "get_order_summary", fake_get_order_summary)
+    monkeypatch.setattr(start_module, "_", lambda s: s)
+
+    monkeypatch.setattr(courier_module, "orm_get_user", fake_orm_get_user)
+    monkeypatch.setattr(courier_module, "get_order_summary", fake_get_order_summary)
+    monkeypatch.setattr(courier_module, "SalonRepository", FakeSalonRepository)
+    monkeypatch.setattr(courier_module, "haversine", fake_haversine)
+    monkeypatch.setattr(courier_module, "calc_delivery_cost", fake_calc_delivery_cost)
+    monkeypatch.setattr(courier_module, "get_address_from_coords", fake_get_address_from_coords)
+    monkeypatch.setattr(courier_module, "_", lambda s: s)
+
+    monkeypatch.setattr(helpers_module, "orm_get_user_carts", fake_orm_get_user_carts)
+    monkeypatch.setattr(helpers_module, "notify_salon_about_order", fake_notify)
+    monkeypatch.setattr(helpers_module, "orm_clear_cart", fake_orm_clear_cart)
+    monkeypatch.setattr(helpers_module, "orm_create_order", fake_orm_create_order)
+    monkeypatch.setattr(helpers_module, "orm_get_orders_count", fake_orm_get_orders_count)
+    monkeypatch.setattr(helpers_module, "SalonRepository", FakeSalonRepository)
+    monkeypatch.setattr(helpers_module, "get_order_summary", fake_get_order_summary)
+    monkeypatch.setattr(helpers_module, "_", lambda s: s)
 
     state = FSM()
     session = Session()
