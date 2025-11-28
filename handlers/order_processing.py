@@ -485,12 +485,21 @@ async def confirm_order(callback: CallbackQuery,
                 await state.clear()
                 return
 
+        name = " ".join(filter(None, [
+            user_salon.first_name if user_salon else None,
+            user_salon.last_name if user_salon else None,
+        ])) or callback.from_user.full_name or ""
+
         order = await orm_create_order(
             session,
             user_salon_id=user_salon_id,
+            name=name,
             address=data.get("address"),
             phone=data.get("phone"),
+            email=data.get("email"),
+            delivery_type=data.get("delivery") or "",
             payment_method=data.get("payment_method"),
+            comment=data.get("comment"),
             cart_items=cart_items,
         )
         # 4. Уведомляем салон ДО очистки FSM и корзины!
