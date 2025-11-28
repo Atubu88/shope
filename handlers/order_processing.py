@@ -490,16 +490,28 @@ async def confirm_order(callback: CallbackQuery,
             user_salon.last_name if user_salon else None,
         ])) or callback.from_user.full_name or ""
 
+        delivery_type = data.get("delivery") or ""
+        payment_method = data.get("payment_method")
+
+        if not payment_method:
+            if delivery_type in {"samovyvoz", "pickup"}:
+                payment_method = "pickup"
+            elif delivery_type == "delivery_courier":
+                payment_method = "cash"
+
+        email = data.get("email") or ""
+        comment = data.get("comment") or ""
+
         order = await orm_create_order(
             session,
             user_salon_id=user_salon_id,
             name=name,
             address=data.get("address"),
             phone=data.get("phone"),
-            email=data.get("email"),
-            delivery_type=data.get("delivery") or "",
-            payment_method=data.get("payment_method"),
-            comment=data.get("comment"),
+            email=email,
+            delivery_type=delivery_type,
+            payment_method=payment_method,
+            comment=comment,
             cart_items=cart_items,
         )
         # 4. Уведомляем салон ДО очистки FSM и корзины!
