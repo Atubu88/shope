@@ -32,7 +32,7 @@ from handlersadmin.banner import banner_router
 from handlersadmin.banner_description import banner_text_router
 from handlersadmin.settings import settings_router
 from handlersadmin.orders import orders_router
-from handlers.order_processing import order_router
+from handlers.order import order_router
 from handlersadmin.menu import admin_menu_router
 from handlers.inline_mode import inline_router
 from handlers.invite_creation import invite_creation_router
