@@ -33,6 +33,29 @@ def get_confirm_kb() -> InlineKeyboardMarkup:
     )
 
 
+def get_pickup_time_kb() -> InlineKeyboardMarkup:
+    """Клавиатура выбора времени самовывоза."""
+
+    buttons = [
+        ("10", "10"),
+        ("20", "20"),
+        ("30", "30"),
+        ("45", "45"),
+        ("1 час", "60"),
+    ]
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=_(f"{label} мин" if label.isdigit() else label),
+                    callback_data=f"pickup_time:{value}",
+                )
+            ]
+            for label, value in buttons
+        ]
+    )
+
+
 def geo_keyboard() -> ReplyKeyboardMarkup:
     """Reply-клавиатура для отправки геолокации."""
 

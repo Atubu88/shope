@@ -29,7 +29,7 @@ from .keyboards import (
     get_delivery_kb,
     phone_keyboard,
 )
-from .pickup_flow import choose_delivery_pickup, router as pickup_router
+from .pickup_flow import choose_delivery_pickup, router as pickup_router, set_pickup_time
 from .start_order import router as start_router, start_order
 from .states import OrderStates
 
@@ -51,6 +51,7 @@ __all__ = [
     "receive_apartment",
     "address_manual",
     "choose_delivery_pickup",
+    "set_pickup_time",
     "phone_back",
     "enter_phone",
     "confirm_order",

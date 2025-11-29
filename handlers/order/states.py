@@ -7,6 +7,7 @@ class OrderStates(StatesGroup):
     """Список состояний цепочки оформления заказа."""
 
     choosing_delivery = State()
+    choosing_pickup_time = State()
     entering_address = State()
     confirming_address = State()
     entering_apartment = State()
