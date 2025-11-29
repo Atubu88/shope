@@ -45,6 +45,9 @@ async def get_order_summary(
     text += "🛍 <b>Состав:</b>\n" + "\n".join(lines)
     text += f"\n\n🚚 <b>Доставка:</b> {delivery_text}"
 
+    if delivery_type == "delivery_pickup" and state_data.get("pickup_time"):
+        text += f"\n⏰ <b>Самовывоз к:</b> {state_data['pickup_time']}"
+
     # Для группы — адрес только если курьер
     # Для клиента — адрес всегда если есть
     show_address = (
