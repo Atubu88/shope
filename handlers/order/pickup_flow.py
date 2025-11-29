@@ -123,15 +123,25 @@ async def set_pickup_time(
     salon = await repo.get_by_id(user.salon_id) if user else None
     tz_name = salon.timezone or "UTC" if salon else "UTC"
 
+    # DEBUG
+    print("\n\n===== DEBUG TIMEZONE =====")
+    print("salon.timezone =", salon.timezone)
+    print("tz_name =", tz_name)
     try:
-        tzinfo = ZoneInfo(tz_name)
-    except Exception:
-        tzinfo = ZoneInfo("UTC")
+        print("ZoneInfo =", ZoneInfo(tz_name))
+    except Exception as e:
+        print("ZoneInfo ERROR:", e)
+    print("=================================\n\n")
 
-    pickup_dt = datetime.now(tzinfo) + timedelta(minutes=minutes)
+    # КОРРЕКТНЫЙ РАСЧЁТ ВРЕМЕНИ
+    utc_now = datetime.utcnow().replace(tzinfo=ZoneInfo("UTC"))
+    local_now = utc_now.astimezone(ZoneInfo(tz_name))
+
+    pickup_dt = local_now + timedelta(minutes=minutes)
     pickup_time = pickup_dt.strftime("%H:%M")
 
     await state.update_data(pickup_time=pickup_time)
+
     summary = (
         await get_order_summary(session, user_salon_id, {**data, "pickup_time": pickup_time})
         if user_salon_id
@@ -166,3 +176,4 @@ async def set_pickup_time(
         phone_back="delivery", last_msg_id=last_msg_id, phone_msg_id=phone_msg.message_id
     )
     await callback.answer()
+
